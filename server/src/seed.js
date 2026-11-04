@@ -13,22 +13,48 @@ function dateOffset(days) {
 }
 
 async function seed() {
+  if (config.isProduction && config.seedDemoData) {
+    throw new Error("SEED_DEMO_DATA no puede activarse en producción");
+  }
+
   runMigrations();
 
-  let superAdmin = users.findAuthByEmail(config.superAdmin.email);
-  if (!superAdmin) {
+  const superAdminEmail = config.superAdmin.email?.trim().toLowerCase();
+  const existingAdmins = users.list().filter((user) => user.role === "super_admin");
+  const configuredAdmin = superAdminEmail
+    ? users.findAuthByEmail(superAdminEmail)
+    : null;
+
+  if (configuredAdmin && configuredAdmin.role !== "super_admin") {
+    throw new Error("SUPER_ADMIN_EMAIL ya pertenece a un usuario que no es superadministrador");
+  }
+
+  if (!configuredAdmin && existingAdmins.length === 0) {
+    if (!superAdminEmail) {
+      throw new Error("Configura SUPER_ADMIN_EMAIL antes de crear el superadministrador");
+    }
+    if (!config.superAdmin.password || config.superAdmin.password.length < 12) {
+      throw new Error("SUPER_ADMIN_PASSWORD debe tener al menos 12 caracteres");
+    }
+
     const passwordHash = await hashPassword(config.superAdmin.password);
     const created = users.create({
       agencyId: null,
       name: config.superAdmin.name,
-      email: config.superAdmin.email,
+      email: superAdminEmail,
       passwordHash,
       role: "super_admin",
     });
-    superAdmin = created;
     console.log(`Super administrador creado: ${created.email}`);
+  } else if (configuredAdmin) {
+    console.log(`Super administrador ya existe: ${configuredAdmin.email}`);
   } else {
-    console.log(`Super administrador ya existe: ${superAdmin.email}`);
+    console.log("Ya existe un superadministrador; no se crea otra cuenta.");
+  }
+
+  if (!config.seedDemoData) {
+    console.log("Datos de demostración desactivados.");
+    return;
   }
 
   const agencyCount = getDb().prepare("SELECT COUNT(*) AS total FROM agencies").get().total;
@@ -37,6 +63,12 @@ async function seed() {
     return;
   }
 
+  if (!config.demoAgencyPassword || config.demoAgencyPassword.length < 12) {
+    throw new Error("DEMO_AGENCY_PASSWORD debe tener al menos 12 caracteres cuando SEED_DEMO_DATA=true");
+  }
+
+  const demoPasswordHash = await hashPassword(config.demoAgencyPassword);
+
   const demoAgencies = [
     { name: "Mary Autopart", code: "MARY", email: "mary@maryautopart.test" },
     { name: "Rapid Multiservice", code: "RAPID", email: "rapid@rapidmultiservice.test" },
@@ -44,12 +76,11 @@ async function seed() {
 
   for (const demo of demoAgencies) {
     const agency = agencies.create({ name: demo.name, code: demo.code });
-    const passwordHash = await hashPassword("Agencia123!");
     const admin = users.create({
       agencyId: agency.id,
       name: `Responsable ${demo.name}`,
       email: demo.email,
-      passwordHash,
+      passwordHash: demoPasswordHash,
       role: "agency_admin",
     });
 
@@ -107,7 +138,7 @@ async function seed() {
     console.log(`Agencia de demostración creada: ${demo.name} (${demo.email})`);
   }
 
-  console.log("Datos de demostración listos. Contraseña de agencias: Agencia123!");
+  console.log("Datos de demostración listos.");
 }
 
 seed().catch((error) => {

@@ -119,6 +119,20 @@ test("un administrador de agencia no puede crear usuarios en otra agencia", asyn
   assert.equal(res.status, 404);
 });
 
+test("un administrador de agencia no puede crear super administradores", async () => {
+  const res = await request(app)
+    .post("/api/users")
+    .set(auth(data.tokens.adminA))
+    .send({
+      name: "Superadmin no autorizado",
+      email: "superadmin-no-autorizado@example.test",
+      password: "Password123!",
+      role: "super_admin",
+    });
+
+  assert.equal(res.status, 403);
+});
+
 test("el super administrador puede listar agencias y usuarios de todas las agencias", async () => {
   const agenciesRes = await request(app)
     .get("/api/agencies")

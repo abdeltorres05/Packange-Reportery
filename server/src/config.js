@@ -51,9 +51,11 @@ module.exports = {
   maxPhotosPerReport: 5,
   clientOrigin: process.env.CLIENT_ORIGIN || "http://localhost:5173",
   clientDist: path.join(rootDir, "client", "dist"),
+  seedDemoData: process.env.SEED_DEMO_DATA === "true",
+  demoAgencyPassword: process.env.DEMO_AGENCY_PASSWORD || null,
   superAdmin: {
     name: process.env.SUPER_ADMIN_NAME || "Administrador General",
-    email: process.env.SUPER_ADMIN_EMAIL || "admin@plataforma.test",
-    password: process.env.SUPER_ADMIN_PASSWORD || "Admin123!",
+    email: process.env.SUPER_ADMIN_EMAIL || null,
+    password: process.env.SUPER_ADMIN_PASSWORD || null,
   },
 };

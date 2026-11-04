@@ -32,7 +32,7 @@ Crea el archivo local de configuración a partir de la plantilla:
 cp .env.example .env
 ```
 
-Antes de iniciar, edita `.env`: establece un `JWT_SECRET` aleatorio y largo, y cambia `SUPER_ADMIN_PASSWORD`. El archivo `.env` no se versiona.
+Antes de iniciar, edita `.env`: establece un `JWT_SECRET` aleatorio y largo, indica el correo de `SUPER_ADMIN_EMAIL` y configura `SUPER_ADMIN_PASSWORD` con al menos 12 caracteres. El archivo `.env` no se versiona.
 
 ## Desarrollo
 
@@ -44,13 +44,21 @@ npm run dev
 
 El cliente estará disponible en `http://localhost:5173` y la API en `http://localhost:3000`. Para comprobar el estado de la API, visita `http://localhost:3000/api/health`.
 
-En el primer uso, crea el esquema de base de datos y el superadministrador:
+En el primer uso, crea el esquema de base de datos y el superadministrador configurado en `.env`:
 
 ```bash
 npm run seed
 ```
 
-El comando también crea agencias y reportes de demostración si la base de datos aún no contiene agencias. Úsalo solo en desarrollo; el código incluye credenciales predecibles para las cuentas de demostración. La cuenta de superadministrador usa los valores `SUPER_ADMIN_NAME`, `SUPER_ADMIN_EMAIL` y `SUPER_ADMIN_PASSWORD` de `.env`.
+El comando no crea datos de demostración de forma predeterminada. El superadministrador se crea solo si todavía no existe; cambiar las variables de `.env` después no modifica la cuenta. Para cambiar su correo o contraseña, inicia sesión y edita el usuario desde la administración.
+
+En desarrollo, puedes optar por crear agencias y reportes de ejemplo configurando `SEED_DEMO_DATA=true` y `DEMO_AGENCY_PASSWORD` (mínimo 12 caracteres) en `.env` antes de ejecutar el seed. Esta opción está bloqueada en producción.
+
+## Roles
+
+- **Superadministrador:** administra agencias y usuarios y puede consultar reportes de todas las agencias.
+- **Administrador de agencia:** administra usuarios y reportes dentro de su propia agencia; no puede crear superadministradores ni acceder a otras agencias.
+- **Empleado de agencia:** trabaja con reportes de su agencia, sin acceso a la administración de agencias o usuarios.
 
 ## Comandos
 
@@ -85,6 +93,8 @@ Las variables principales de `.env` son:
 | `SUPER_ADMIN_NAME` | Nombre inicial del superadministrador. |
 | `SUPER_ADMIN_EMAIL` | Correo inicial del superadministrador. |
 | `SUPER_ADMIN_PASSWORD` | Contraseña inicial del superadministrador. |
+| `SEED_DEMO_DATA` | Activa la creación de datos demo en desarrollo (por defecto `false`; prohibido en producción). |
+| `DEMO_AGENCY_PASSWORD` | Contraseña para las cuentas demo (mínimo 12 caracteres cuando se activan). |
 
 ## Estructura
 
