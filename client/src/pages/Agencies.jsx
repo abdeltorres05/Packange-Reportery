@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 
 import { api } from "../api";
 import { formatDateTime } from "../constants";
+import { notify } from "../notifications";
 
 function emptyForm() {
   return { name: "", code: "" };
@@ -12,8 +13,6 @@ export default function Agencies() {
   const [form, setForm] = useState(emptyForm);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState("");
-  const [message, setMessage] = useState("");
 
   const load = useCallback(() => {
     setLoading(true);
@@ -21,9 +20,8 @@ export default function Agencies() {
       .get("/agencies?all=1")
       .then((data) => {
         setAgencies(data.items);
-        setError("");
       })
-      .catch((err) => setError(err.message))
+      .catch((err) => notify(err.message, "error"))
       .finally(() => setLoading(false));
   }, []);
 
@@ -32,29 +30,26 @@ export default function Agencies() {
   const handleSubmit = async (event) => {
     event.preventDefault();
     setSubmitting(true);
-    setError("");
-    setMessage("");
 
     try {
       await api.post("/agencies", form);
       setForm(emptyForm());
-      setMessage("Agencia creada correctamente.");
+      notify("Agencia creada correctamente.", "success");
       load();
     } catch (err) {
-      setError(err.message);
+      notify(err.message, "error");
     } finally {
       setSubmitting(false);
     }
   };
 
   const toggleActive = async (agency) => {
-    setError("");
-    setMessage("");
     try {
       await api.patch(`/agencies/${agency.id}`, { active: !agency.active });
+      notify(agency.active ? "Agencia desactivada." : "Agencia activada.", "warning");
       load();
     } catch (err) {
-      setError(err.message);
+      notify(err.message, "error");
     }
   };
 
@@ -68,9 +63,6 @@ export default function Agencies() {
           </p>
         </div>
       </header>
-
-      {error && <div className="alert alert-error">{error}</div>}
-      {message && <div className="alert alert-success">{message}</div>}
 
       <div className="split-layout">
         <section className="card">

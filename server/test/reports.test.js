@@ -47,6 +47,34 @@ test("crea un reporte y registra el historial inicial", async () => {
   assert.equal(detail.body.history[0].status, "pendiente");
 });
 
+test("crea un reporte mínimo con HBL y descripción", async () => {
+  const res = await request(app)
+    .post("/api/reports")
+    .set(auth(data.tokens.adminA))
+    .send({ trackingNumber: "HBL-100", description: "Bulto dañado" });
+
+  assert.equal(res.status, 201);
+  assert.equal(res.body.report.trackingNumber, "HBL-100");
+  assert.equal(res.body.report.description, "Bulto dañado");
+  assert.equal(res.body.report.senderName, "No especificado");
+  assert.equal(res.body.report.recipientName, "No especificado");
+  assert.match(res.body.report.reportDate, /^\d{4}-\d{2}-\d{2}$/);
+});
+
+test("el superadministrador debe indicar una agencia al crear un reporte", async () => {
+  const res = await request(app)
+    .post("/api/reports")
+    .set(auth(data.tokens.superAdmin))
+    .send({
+      trackingNumber: "HBL-SUPER-1",
+      description: "Bulto retenido",
+      agencyId: data.agencyB.id,
+    });
+
+  assert.equal(res.status, 201);
+  assert.equal(res.body.report.agencyId, data.agencyB.id);
+});
+
 test("no permite guías duplicadas dentro de la misma agencia", async () => {
   const res = await request(app)
     .post("/api/reports")

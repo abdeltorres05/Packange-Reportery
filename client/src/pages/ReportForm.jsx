@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 
 import { api } from "../api";
 import { STATUSES, STATUS_LABELS, todayISO } from "../constants";
+import { notify } from "../notifications";
 
 function emptyForm() {
   return {
@@ -29,8 +30,6 @@ export default function ReportForm() {
   const [files, setFiles] = useState([]);
   const [loading, setLoading] = useState(isEdit);
   const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState("");
-  const [details, setDetails] = useState([]);
 
   useEffect(() => {
     if (!isEdit) return;
@@ -55,7 +54,7 @@ export default function ReportForm() {
         setOriginalStatus(report.status);
       })
       .catch((err) => {
-        if (active) setError(err.message);
+        if (active) notify(err.message, "error");
       })
       .finally(() => {
         if (active) setLoading(false);
@@ -73,8 +72,6 @@ export default function ReportForm() {
   const handleSubmit = async (event) => {
     event.preventDefault();
     setSubmitting(true);
-    setError("");
-    setDetails([]);
 
     const payload = {
       trackingNumber: form.trackingNumber,
@@ -94,6 +91,7 @@ export default function ReportForm() {
           payload.statusNotes = form.statusNotes.trim() || null;
         }
         await api.patch(`/reports/${id}`, payload);
+        notify("Reporte actualizado correctamente.", "warning");
         navigate(`/reportes/${id}`);
         return;
       }
@@ -107,16 +105,17 @@ export default function ReportForm() {
         try {
           await api.post(`/reports/${reportId}/photos`, data);
         } catch (photoError) {
-          window.alert(
-            `El reporte se creó, pero no se pudieron subir las fotos: ${photoError.message}`
-          );
+          notify(`El reporte se creó, pero no se pudieron subir las fotos: ${photoError.message}`, "warning");
         }
       }
 
+      notify("Reporte creado correctamente.", "success");
       navigate(`/reportes/${reportId}`);
     } catch (err) {
-      setError(err.message);
-      setDetails(err.details || []);
+      const details = (err.details || [])
+        .map((detail) => `${detail.path ? `${detail.path}: ` : ""}${detail.message}`)
+        .join("; ");
+      notify(details ? `${err.message}: ${details}` : err.message, "error");
     } finally {
       setSubmitting(false);
     }
@@ -139,27 +138,13 @@ export default function ReportForm() {
         </div>
         <Link
           to={isEdit ? `/reportes/${id}` : "/reportes"}
-          className="btn btn-ghost"
+          className="icon-button form-close-button"
+          title="Cerrar formulario"
+          aria-label="Cerrar formulario"
         >
-          Cancelar
+          ×
         </Link>
       </header>
-
-      {error && (
-        <div className="alert alert-error">
-          <strong>{error}</strong>
-          {details.length > 0 && (
-            <ul>
-              {details.map((detail) => (
-                <li key={`${detail.path}-${detail.message}`}>
-                  {detail.path ? `${detail.path}: ` : ""}
-                  {detail.message}
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-      )}
 
       <form className="card form" onSubmit={handleSubmit}>
         <div className="form-grid">

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Navigate, useLocation, useNavigate } from "react-router-dom";
 
 import { useAuth } from "../auth/AuthContext";
+import { notify } from "../notifications";
 
 export default function Login() {
   const { user, login } = useAuth();
@@ -10,7 +11,6 @@ export default function Login() {
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
   if (user) return <Navigate to="/" replace />;
@@ -18,14 +18,13 @@ export default function Login() {
   const handleSubmit = async (event) => {
     event.preventDefault();
     setSubmitting(true);
-    setError("");
 
     try {
       await login(email.trim(), password);
       const target = location.state?.from?.pathname || "/";
       navigate(target, { replace: true });
     } catch (err) {
-      setError(err.message);
+      notify(err.message, "error");
     } finally {
       setSubmitting(false);
     }
@@ -51,8 +50,6 @@ export default function Login() {
         <form className="card login-form" onSubmit={handleSubmit}>
           <h2>Iniciar sesión</h2>
           <p className="muted">Accede con la cuenta de tu agencia.</p>
-
-          {error && <div className="alert alert-error">{error}</div>}
 
           <label className="field">
             <span>Correo electrónico</span>

@@ -4,6 +4,7 @@ const { Router } = require("express");
 
 const config = require("../config");
 const reports = require("../repositories/reports");
+const agencies = require("../repositories/agencies");
 const photos = require("../repositories/photos");
 const {
   reportCreateSchema,
@@ -48,10 +49,13 @@ router.get("/", (req, res) => {
 
 router.post("/", requireRole("agency_admin", "agency_user", "super_admin"), (req, res) => {
   const data = validate(reportCreateSchema, req.body);
-  const agencyId = req.user.agencyId;
+  const agencyId = req.user.role === "super_admin" ? data.agencyId : req.user.agencyId;
 
-  if (!agencyId && req.user.role !== "super_admin") {
+  if (!agencyId) {
     throw notFound("Agencia no disponible");
+  }
+  if (req.user.role === "super_admin" && !agencies.findById(agencyId)) {
+    throw notFound("Agencia no encontrada");
   }
 
   if (reports.findByTrackingNumber(agencyId, data.trackingNumber)) {

@@ -144,6 +144,31 @@ code {
   background: var(--primary-hover);
 }
 
+.report-modal-action,
+.report-create-button {
+  background: #111;
+  border-color: #111;
+  color: #fff;
+}
+
+.report-modal-action:hover:not(:disabled),
+.report-create-button:hover {
+  background: #333;
+  border-color: #333;
+  color: #fff;
+}
+
+.report-modal-action:focus-visible,
+.report-create-button:focus-visible {
+  outline: 3px solid rgba(17, 17, 17, 0.3);
+  outline-offset: 2px;
+}
+
+.report-create-button {
+  width: 2.5rem;
+  height: 2.5rem;
+}
+
 .btn-ghost {
   border-color: var(--border);
 }
@@ -182,6 +207,99 @@ code {
 .alert-success {
   background: rgba(15, 118, 110, 0.08);
   color: var(--success);
+}
+
+.toast-region {
+  position: fixed;
+  z-index: 1200;
+  top: 1rem;
+  right: 1rem;
+  display: grid;
+  width: min(390px, calc(100vw - 2rem));
+  gap: 0.7rem;
+  pointer-events: none;
+}
+
+.toast {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.8rem;
+  overflow: hidden;
+  padding: 1rem 0.9rem 1.1rem 1rem;
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--info);
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.16);
+  color: var(--text);
+  pointer-events: auto;
+  animation: toast-enter 180ms ease-out;
+}
+
+.toast-success {
+  border-left-color: var(--success);
+}
+
+.toast-error {
+  border-left-color: var(--danger);
+}
+
+.toast-danger {
+  border-left-color: var(--danger);
+  background: #fffafa;
+}
+
+.toast-warning {
+  border-left-color: #d3a000;
+  background: #fffdf3;
+}
+
+.toast-copy {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-weight: 600;
+}
+
+.toast-close {
+  flex: none;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 1.35rem;
+  line-height: 1;
+}
+
+.toast-progress {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 3px;
+  background: currentColor;
+  opacity: 0.16;
+  transform-origin: left;
+  animation: toast-countdown var(--toast-duration) linear forwards;
+}
+
+@keyframes toast-enter {
+  from {
+    opacity: 0;
+    transform: translateX(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes toast-countdown {
+  to {
+    transform: scaleX(0);
+  }
 }
 
 .app-shell {
@@ -317,9 +435,49 @@ code {
 .field input,
 .field select,
 .field textarea {
-  border-radius: 12px;
+  border-radius: 10px;
   border: 1px solid var(--border);
   padding: 0.6rem 0.8rem;
+  background-color: #fff;
+  color: var(--text);
+}
+
+.field select,
+.filters-inline select {
+  appearance: none;
+  min-height: 2.75rem;
+  padding-right: 2.6rem;
+  border-color: #cbd5e1;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%234b5563' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.8rem center;
+  background-size: 1rem;
+  cursor: pointer;
+  transition: border-color 140ms ease, box-shadow 140ms ease;
+}
+
+.field select:hover,
+.filters-inline select:hover {
+  border-color: #94a3b8;
+}
+
+.field select:focus-visible,
+.filters-inline select:focus-visible {
+  outline: 0;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(31, 78, 121, 0.16);
+}
+
+.field select:disabled,
+.filters-inline select:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
+.field input[type="checkbox"],
+.field input[type="radio"],
+.photo-option input[type="checkbox"] {
+  accent-color: var(--primary);
 }
 
 .demo-hint {
@@ -514,6 +672,18 @@ th {
   padding: clamp(1rem, 2vw, 1.6rem);
 }
 
+.confirm-dialog {
+  width: min(440px, 100%);
+  display: flex;
+  flex-direction: column;
+  gap: 1.2rem;
+  padding: 1.4rem;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--panel);
+  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.24);
+}
+
 .modal-header {
   display: flex;
   align-items: flex-start;
@@ -561,7 +731,40 @@ th {
 
 .form-actions {
   display: flex;
+  justify-content: flex-end;
   gap: 0.8rem;
+  margin-top: 1rem;
+  padding-top: 0.8rem;
+}
+
+.confirm-actions {
+  margin-top: 0;
+}
+
+.confirm-destructive {
+  border-color: var(--danger);
+  background: var(--danger);
+  color: #fff;
+}
+
+.confirm-destructive:hover:not(:disabled) {
+  border-color: #b91c1c;
+  background: #b91c1c;
+  color: #fff;
+}
+
+.photo-option {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  cursor: pointer;
+}
+
+.photo-option input {
+  width: 1.1rem;
+  height: 1.1rem;
+  margin: 0;
+  accent-color: #111;
 }
 
 .compact {

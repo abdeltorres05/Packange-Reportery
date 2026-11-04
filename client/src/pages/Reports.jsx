@@ -3,8 +3,10 @@ import { useLocation, useNavigate } from "react-router-dom";
 
 import { api } from "../api";
 import { useAuth } from "../auth/AuthContext";
+import ConfirmDialog from "../components/ConfirmDialog";
 import StatusBadge from "../components/StatusBadge";
-import { STATUSES, STATUS_LABELS, formatDateTime } from "../constants";
+import { STATUSES, STATUS_LABELS, formatDateTime, todayISO } from "../constants";
+import { notify } from "../notifications";
 
 const EyeIcon = () => (
   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
@@ -54,12 +56,16 @@ export default function Reports() {
   const [agencies, setAgencies] = useState([]);
   const [modal, setModal] = useState({ open: false, mode: "view", report: null });
   const [formBulto, setFormBulto] = useState("");
+  const [formDescription, setFormDescription] = useState("");
+  const [attachPhoto, setAttachPhoto] = useState(false);
+  const [photoFile, setPhotoFile] = useState(null);
+  const [createAgencyId, setCreateAgencyId] = useState("");
   const [note, setNote] = useState("");
   const [statusToSet, setStatusToSet] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
+  const [pendingDelete, setPendingDelete] = useState(null);
+  const [deleting, setDeleting] = useState(false);
 
   const canView = Boolean(user);
   const canModify = user.role === "agency_admin" || user.role === "super_admin";
@@ -87,9 +93,8 @@ export default function Reports() {
       .get(`/reports?${params.toString()}`)
       .then((result) => {
         setData(result);
-        setError("");
       })
-      .catch((err) => setError(err.message))
+      .catch((err) => notify(err.message, "error"))
       .finally(() => setLoading(false));
   }, [filters]);
 
@@ -107,32 +112,32 @@ export default function Reports() {
   const openCreate = () => {
     setModal({ open: true, mode: "create", report: null });
     setFormBulto("");
+    setFormDescription("");
+    setAttachPhoto(false);
+    setPhotoFile(null);
+    setCreateAgencyId("");
     setNote("");
     setStatusToSet("pendiente");
-    setError("");
-    setSuccess("");
   };
 
   const openView = async (report) => {
-    setError("");
-    setSuccess("");
     try {
       const detail = await api.get(`/reports/${report.id}`);
       setModal({ open: true, mode: "view", report: { ...report, ...detail } });
     } catch (err) {
+      notify(err.message, "error");
       setModal({ open: true, mode: "view", report: { ...report, history: [], photos: [] } });
     }
     setNote("");
   };
 
   const openEdit = async (report) => {
-    setError("");
-    setSuccess("");
     try {
       const detail = await api.get(`/reports/${report.id}`);
       setModal({ open: true, mode: "edit", report: { ...report, ...detail } });
       setStatusToSet((detail.report || report).status);
     } catch (err) {
+      notify(err.message, "error");
       setModal({ open: true, mode: "edit", report: { ...report, history: [] } });
       setStatusToSet(report.status);
     }
@@ -142,21 +147,40 @@ export default function Reports() {
   const closeModal = () => {
     setModal({ open: false, mode: "view", report: null });
     setFormBulto("");
+    setFormDescription("");
+    setAttachPhoto(false);
+    setPhotoFile(null);
+    setCreateAgencyId("");
     setNote("");
   };
 
   const handleCreate = async (event) => {
     event.preventDefault();
     setSaving(true);
-    setError("");
-    setSuccess("");
     try {
-      await api.post("/reports", { bultoNumber: formBulto.trim() });
-      setSuccess("Reporte creado.");
+      const payload = {
+        trackingNumber: formBulto.trim(),
+        description: formDescription.trim(),
+        reportDate: todayISO(),
+        ...(user.role === "super_admin" ? { agencyId: Number(createAgencyId) } : {}),
+      };
+      const created = await api.post("/reports", payload);
+
+      if (photoFile) {
+        const formData = new FormData();
+        formData.append("photos", photoFile);
+        try {
+          await api.post(`/reports/${created.report.id}/photos`, formData);
+        } catch (photoError) {
+          notify(`El reporte se creó, pero no se pudo subir la foto: ${photoError.message}`, "warning");
+        }
+      }
+
+      notify("Reporte creado correctamente.", "success");
       closeModal();
       fetchList();
     } catch (err) {
-      setError(err.message);
+      notify(err.message, "error");
     } finally {
       setSaving(false);
     }
@@ -166,8 +190,6 @@ export default function Reports() {
     event.preventDefault();
     if (!modal.report) return;
     setSaving(true);
-    setError("");
-    setSuccess("");
     try {
       const payload = {};
       if (statusToSet && statusToSet !== modal.report.status) {
@@ -175,32 +197,33 @@ export default function Reports() {
       }
       if (note.trim()) payload.notes = note.trim();
       if (Object.keys(payload).length === 0) {
-        setError("Selecciona un nuevo estado o agrega una respuesta.");
+        notify("Selecciona un nuevo estado o agrega una respuesta.", "warning");
         return;
       }
       await api.patch(`/reports/${modal.report.id}`, payload);
-      setSuccess("Reporte actualizado.");
+      notify("Reporte actualizado correctamente.", "warning");
       closeModal();
       fetchList();
     } catch (err) {
-      setError(err.message);
+      notify(err.message, "error");
     } finally {
       setSaving(false);
     }
   };
 
-  const handleDelete = async (report) => {
-    if (!report) return;
-    if (!window.confirm("¿Eliminar este reporte?")) return;
-    setError("");
-    setSuccess("");
+  const confirmDelete = async () => {
+    if (!pendingDelete) return;
+    setDeleting(true);
     try {
-      await api.del(`/reports/${report.id}`);
-      if (modal.report?.id === report.id) closeModal();
-      setSuccess("Reporte eliminado.");
+      await api.del(`/reports/${pendingDelete.id}`);
+      if (modal.report?.id === pendingDelete.id) closeModal();
+      notify("Reporte eliminado.", "danger");
+      setPendingDelete(null);
       fetchList();
     } catch (err) {
-      setError(err.message);
+      notify(err.message, "error");
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -221,18 +244,20 @@ export default function Reports() {
         </div>
       </header>
 
-      {error && !modal.open && <div className="alert alert-error">{error}</div>}
-      {success && !modal.open && <div className="alert alert-success">{success}</div>}
-
       <section className="card">
         <div className="card-header">
           <div className="table-title">
             <h2>Listado de reportes</h2>
           </div>
           {canCreate && (
-            <button type="button" className="btn btn-primary" onClick={openCreate}>
+            <button
+              type="button"
+              className="icon-button report-create-button"
+              onClick={openCreate}
+              title="Crear reporte"
+              aria-label="Crear reporte"
+            >
               <PlusIcon />
-              Crear reporte
             </button>
           )}
         </div>
@@ -293,7 +318,7 @@ export default function Reports() {
               <tbody>
                 {items.map((item) => (
                   <tr key={item.id}>
-                    <td className="mono">{item.bultoNumber}</td>
+                    <td className="mono">{item.trackingNumber}</td>
                     <td>
                       <StatusBadge status={item.status} />
                     </td>
@@ -328,7 +353,7 @@ export default function Reports() {
                             type="button"
                             className="icon-button icon-button-danger"
                             title="Eliminar"
-                            onClick={() => handleDelete(item)}
+                            onClick={() => setPendingDelete(item)}
                           >
                             <TrashIcon />
                           </button>
@@ -372,8 +397,8 @@ export default function Reports() {
       </section>
 
       {modal.open && (
-        <div className="modal-backdrop" onClick={closeModal}>
-          <div className="modal" onClick={(event) => event.stopPropagation()}>
+        <div className="modal-backdrop">
+          <div className="modal">
             <header className="modal-header">
               <div>
                 <h2>
@@ -385,37 +410,99 @@ export default function Reports() {
                 </h2>
                 {detail && (
                   <p className="muted">
-                    {detail.bultoNumber}
+                    {detail.trackingNumber}
                     {user.role === "super_admin" && detail.agencyName
                       ? ` · ${detail.agencyName}`
                       : ""}
                   </p>
                 )}
               </div>
-              <button type="button" className="icon-button" onClick={closeModal}>
+              <button
+                type="button"
+                className="icon-button"
+                title="Cerrar"
+                aria-label="Cerrar formulario"
+                onClick={closeModal}
+              >
                 ×
               </button>
             </header>
 
-            {error && <div className="alert alert-error">{error}</div>}
-            {success && <div className="alert alert-success">{success}</div>}
-
             {modal.mode === "create" && (
               <form className="form" onSubmit={handleCreate}>
                 <label className="field">
-                  <span>Número de bulto *</span>
+                  <span>Número del bulto (HBL) *</span>
                   <input
                     value={formBulto}
                     onChange={(event) => setFormBulto(event.target.value)}
-                    placeholder="Ej. B-123456"
+                    placeholder="Ej. HBL-123456"
                     required
                   />
                 </label>
+                <label className="field">
+                  <span>Descripción del reporte *</span>
+                  <textarea
+                    value={formDescription}
+                    onChange={(event) => setFormDescription(event.target.value)}
+                    rows={3}
+                    maxLength={2000}
+                    placeholder="Describe el problema del bulto"
+                    required
+                  />
+                </label>
+                {user.role === "super_admin" && (
+                  <label className="field">
+                    <span>Agencia *</span>
+                    <select
+                      value={createAgencyId}
+                      onChange={(event) => setCreateAgencyId(event.target.value)}
+                      required
+                    >
+                      <option value="">Seleccionar agencia</option>
+                      {agencies.map((agency) => (
+                        <option key={agency.id} value={agency.id}>
+                          {agency.name}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                )}
+                <label className="photo-option">
+                  <input
+                    type="checkbox"
+                    checked={attachPhoto}
+                    onChange={(event) => {
+                      setAttachPhoto(event.target.checked);
+                      setPhotoFile(null);
+                    }}
+                  />
+                  <span>Adjuntar una foto</span>
+                </label>
+                {attachPhoto && (
+                  <label className="field">
+                    <span>Foto (JPEG, PNG o WebP) *</span>
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp"
+                      required
+                      onChange={(event) => setPhotoFile(event.target.files?.[0] || null)}
+                    />
+                    {photoFile && <small className="muted">{photoFile.name}</small>}
+                  </label>
+                )}
                 <div className="form-actions">
-                  <button type="submit" className="btn btn-primary" disabled={saving}>
+                  <button
+                    type="submit"
+                    className="btn report-modal-action"
+                    disabled={saving}
+                  >
                     {saving ? "Creando…" : "Crear reporte"}
                   </button>
-                  <button type="button" className="btn btn-ghost" onClick={closeModal}>
+                  <button
+                    type="button"
+                    className="btn report-modal-action"
+                    onClick={closeModal}
+                  >
                     Cancelar
                   </button>
                 </div>
@@ -427,7 +514,7 @@ export default function Reports() {
                 <dl className="detail-list">
                   <div>
                     <dt>Número de bulto</dt>
-                    <dd className="mono">{detail.bultoNumber}</dd>
+                    <dd className="mono">{detail.trackingNumber}</dd>
                   </div>
                   <div>
                     <dt>Estado</dt>
@@ -454,6 +541,10 @@ export default function Reports() {
                     <dd>{formatDateTime(detail.updatedAt)}</dd>
                   </div>
                 </dl>
+                <div>
+                  <h3>Descripción</h3>
+                  <p className="pre-line">{detail.description || "Sin descripción"}</p>
+                </div>
 
                 <div>
                   <h3>Historial</h3>
@@ -480,7 +571,7 @@ export default function Reports() {
                 <dl className="detail-list">
                   <div>
                     <dt>Número de bulto</dt>
-                    <dd className="mono">{detail.bultoNumber}</dd>
+                    <dd className="mono">{detail.trackingNumber}</dd>
                   </div>
                   <div>
                     <dt>Estado actual</dt>
@@ -551,6 +642,16 @@ export default function Reports() {
           </div>
         </div>
       )}
+
+      <ConfirmDialog
+        open={Boolean(pendingDelete)}
+        title="Eliminar reporte"
+        message={`¿Eliminar el reporte ${pendingDelete?.trackingNumber || "seleccionado"}? Esta acción no se puede deshacer.`}
+        confirmLabel="Eliminar"
+        busy={deleting}
+        onConfirm={confirmDelete}
+        onCancel={() => setPendingDelete(null)}
+      />
     </div>
   );
 }

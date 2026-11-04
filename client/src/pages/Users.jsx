@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from "react";
 import { api } from "../api";
 import { useAuth } from "../auth/AuthContext";
 import { ROLE_LABELS } from "../constants";
+import { notify } from "../notifications";
 
 function emptyForm() {
   return {
@@ -23,9 +24,6 @@ export default function Users() {
   const [form, setForm] = useState(emptyForm);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState("");
-  const [details, setDetails] = useState([]);
-  const [message, setMessage] = useState("");
 
   const load = useCallback(() => {
     setLoading(true);
@@ -36,9 +34,8 @@ export default function Users() {
       .then(([usersData, agenciesData]) => {
         setUsers(usersData.items);
         if (agenciesData) setAgencies(agenciesData.items);
-        setError("");
       })
-      .catch((err) => setError(err.message))
+      .catch((err) => notify(err.message, "error"))
       .finally(() => setLoading(false));
   }, [isSuper]);
 
@@ -51,9 +48,6 @@ export default function Users() {
   const handleSubmit = async (event) => {
     event.preventDefault();
     setSubmitting(true);
-    setError("");
-    setDetails([]);
-    setMessage("");
 
     const payload = {
       name: form.name,
@@ -65,7 +59,7 @@ export default function Users() {
     if (isSuper && form.role !== "super_admin") {
       payload.agencyId = Number(form.agencyId);
       if (!payload.agencyId) {
-        setError("Selecciona la agencia del usuario.");
+        notify("Selecciona la agencia del usuario.", "warning");
         setSubmitting(false);
         return;
       }
@@ -74,24 +68,25 @@ export default function Users() {
     try {
       await api.post("/users", payload);
       setForm(emptyForm());
-      setMessage("Usuario creado correctamente.");
+      notify("Usuario creado correctamente.", "success");
       load();
     } catch (err) {
-      setError(err.message);
-      setDetails(err.details || []);
+      const details = (err.details || [])
+        .map((detail) => `${detail.path ? `${detail.path}: ` : ""}${detail.message}`)
+        .join("; ");
+      notify(details ? `${err.message}: ${details}` : err.message, "error");
     } finally {
       setSubmitting(false);
     }
   };
 
   const toggleActive = async (target) => {
-    setError("");
-    setMessage("");
     try {
       await api.patch(`/users/${target.id}`, { active: !target.active });
+      notify(target.active ? "Usuario desactivado." : "Usuario activado.", "warning");
       load();
     } catch (err) {
-      setError(err.message);
+      notify(err.message, "error");
     }
   };
 
@@ -111,23 +106,6 @@ export default function Users() {
           </p>
         </div>
       </header>
-
-      {error && (
-        <div className="alert alert-error">
-          <strong>{error}</strong>
-          {details.length > 0 && (
-            <ul>
-              {details.map((detail) => (
-                <li key={`${detail.path}-${detail.message}`}>
-                  {detail.path ? `${detail.path}: ` : ""}
-                  {detail.message}
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-      )}
-      {message && <div className="alert alert-success">{message}</div>}
 
       <div className="split-layout">
         <section className="card">
