@@ -5,6 +5,26 @@ import { ROLE_LABELS } from "../constants";
 
 const navClass = ({ isActive }) => (isActive ? "nav-link active" : "nav-link");
 
+function LogoutIcon() {
+  return (
+    <svg
+      width="18"
+      height="18"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M10 17l5-5-5-5" />
+      <path d="M15 12H3" />
+      <path d="M12 3h6a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-6" />
+    </svg>
+  );
+}
+
 export default function Layout() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
@@ -47,15 +67,20 @@ export default function Layout() {
         <div className="sidebar-footer">
           <div className="user-info">
             <strong>{user.name}</strong>
-            <span>
-              {user.role === "super_admin"
-                ? ROLE_LABELS[user.role]
-                : user.agencyName}
-            </span>
+            <div className="user-info-meta">
+              <span className="user-role">{ROLE_LABELS[user.role]}</span>
+              <button
+                type="button"
+                className="logout-icon-button"
+                onClick={handleLogout}
+                title="Cerrar sesión"
+                aria-label="Cerrar sesión"
+              >
+                <LogoutIcon />
+              </button>
+            </div>
+            {user.agencyName && <span className="user-agency">{user.agencyName}</span>}
           </div>
-          <button type="button" className="btn btn-ghost" onClick={handleLogout}>
-            Salir
-          </button>
         </div>
       </aside>
 

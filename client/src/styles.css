@@ -384,6 +384,47 @@ code {
   font-size: 0.9rem;
 }
 
+.user-info-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+}
+
+.user-info .user-role {
+  font-size: 0.85rem;
+}
+
+.user-info .user-agency {
+  font-size: 0.8rem;
+}
+
+.logout-icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: background-color 140ms ease, color 140ms ease;
+}
+
+.logout-icon-button:hover {
+  background: rgba(31, 41, 55, 0.08);
+  color: var(--text);
+}
+
+.logout-icon-button:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
 .main-area {
   flex: 1;
   display: flex;
