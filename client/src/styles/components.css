@@ -229,6 +229,36 @@ td {
   font-size: 0.85rem;
   font-variant-numeric: tabular-nums;
   font-weight: 600;
+}.crud-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  width: fit-content;
+  max-width: 100%;
+  padding: 0.25rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #f3f5f7;
+}.crud-tab {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.5rem;
+  padding: 0.5rem 1rem;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-muted);
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+}.crud-tab.active {
+  background: var(--panel);
+  color: var(--text);
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.14);
+}.crud-tab:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 1px;
 }.pagination {
   display: flex;
   align-items: center;

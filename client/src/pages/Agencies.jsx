@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 
 import { api } from "../api";
+import CrudTabs from "../components/CrudTabs";
 import DataTable from "../components/DataTable";
 import { formatDateTime } from "../constants";
 import { notify } from "../notifications";
@@ -10,6 +11,7 @@ function emptyForm() {
 }
 
 export default function Agencies() {
+  const [activeOperation, setActiveOperation] = useState("read");
   const [agencies, setAgencies] = useState([]);
   const [form, setForm] = useState(emptyForm);
   const [loading, setLoading] = useState(true);
@@ -67,7 +69,8 @@ export default function Agencies() {
       ),
     },
     { key: "createdAt", label: "Creada", render: (agency) => formatDateTime(agency.createdAt) },
-    {
+    ...(activeOperation === "update"
+      ? [{
       key: "actions",
       label: "Acciones",
       headerClassName: "actions-head",
@@ -81,7 +84,13 @@ export default function Agencies() {
           {agency.active ? "Desactivar" : "Activar"}
         </button>
       ),
-    },
+      }]
+      : []),
+  ];
+  const operations = [
+    { value: "read", label: "Consultar" },
+    { value: "create", label: "Crear" },
+    { value: "update", label: "Actualizar" },
   ];
 
   return (
@@ -95,27 +104,43 @@ export default function Agencies() {
         </div>
       </header>
 
-      <div className="split-layout">
-        <section className="card">
-          <div className="card-header">
-            <h2>Agencias registradas</h2>
-            <span className="list-count" aria-label={`${agencies.length} agencias`}>
-              {agencies.length}
-            </span>
-          </div>
+      <CrudTabs
+        moduleId="agencies"
+        moduleName="agencias"
+        operations={operations}
+        value={activeOperation}
+        onChange={setActiveOperation}
+      />
 
-          <DataTable
-            columns={columns}
-            rows={agencies}
-            loading={loading}
-            loadingMessage="Cargando agencias..."
-            emptyMessage="Aún no hay agencias registradas."
-          />
-        </section>
+      <div
+        className="split-layout crud-panel"
+        role="tabpanel"
+        id="agencies-panel"
+        aria-labelledby={`agencies-tab-${activeOperation}`}
+      >
+        {activeOperation !== "create" && (
+          <section className="card">
+            <div className="card-header">
+              <h2>{activeOperation === "read" ? "Consultar agencias" : "Actualizar agencias"}</h2>
+              <span className="list-count" aria-label={`${agencies.length} agencias`}>
+                {agencies.length}
+              </span>
+            </div>
 
-        <section className="card">
-          <h2>Nueva agencia</h2>
-          <form className="form compact" onSubmit={handleSubmit}>
+            <DataTable
+              columns={columns}
+              rows={agencies}
+              loading={loading}
+              loadingMessage="Cargando agencias..."
+              emptyMessage="Aún no hay agencias registradas."
+            />
+          </section>
+        )}
+
+        {activeOperation === "create" && (
+          <section className="card">
+            <h2>Crear agencia</h2>
+            <form className="form compact" onSubmit={handleSubmit}>
             <label className="field">
               <span>Nombre *</span>
               <input
@@ -144,8 +169,9 @@ export default function Agencies() {
             <button type="submit" className="btn btn-primary" disabled={submitting}>
               {submitting ? "Creando…" : "Crear agencia"}
             </button>
-          </form>
-        </section>
+            </form>
+          </section>
+        )}
       </div>
     </div>
   );
