@@ -1,0 +1,14 @@
+@media (max-width: 1080px) {
+  .topbar {
+    grid-template-columns: 1fr;
+    justify-items: start;
+  }
+
+  .nav {
+    order: 3;
+  }
+
+  .user-box {
+    justify-self: end;
+  }
+}
