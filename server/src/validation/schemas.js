@@ -88,7 +88,7 @@ const reportUpdateSchema = z.object({
   recipientPhone: z.string().trim().max(40).optional().nullable().transform((value) => value === "" ? null : value),
   reportDate: dateString.optional(),
   status: z.enum(STATUSES).optional(),
-  description: z.string().trim().min(1).max(2000).optional(),
+  description: z.string().trim().min(1, "La descripción es obligatoria").max(2000).optional(),
   observations: optionalText(2000),
   statusNotes: optionalText(500),
   notes: optionalText(500),

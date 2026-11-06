@@ -57,6 +57,8 @@ export default function Reports() {
   const [modal, setModal] = useState({ open: false, mode: "view", report: null });
   const [formBulto, setFormBulto] = useState("");
   const [formDescription, setFormDescription] = useState("");
+  const [editTrackingNumber, setEditTrackingNumber] = useState("");
+  const [editDescription, setEditDescription] = useState("");
   const [attachPhoto, setAttachPhoto] = useState(false);
   const [photoFile, setPhotoFile] = useState(null);
   const [createAgencyId, setCreateAgencyId] = useState("");
@@ -69,6 +71,7 @@ export default function Reports() {
 
   const canView = Boolean(user);
   const canModify = user.role === "agency_admin" || user.role === "super_admin";
+  const canChangeStatus = user.role === "super_admin";
   const canDelete = user.role === "super_admin";
   const canCreate = user.role === "agency_admin" || user.role === "agency_user" || user.role === "super_admin";
 
@@ -135,10 +138,15 @@ export default function Reports() {
     try {
       const detail = await api.get(`/reports/${report.id}`);
       setModal({ open: true, mode: "edit", report: { ...report, ...detail } });
-      setStatusToSet((detail.report || report).status);
+      const currentReport = detail.report || report;
+      setEditTrackingNumber(currentReport.trackingNumber || "");
+      setEditDescription(currentReport.description || "");
+      setStatusToSet(currentReport.status);
     } catch (err) {
       notify(err.message, "error");
       setModal({ open: true, mode: "edit", report: { ...report, history: [] } });
+      setEditTrackingNumber(report.trackingNumber || "");
+      setEditDescription(report.description || "");
       setStatusToSet(report.status);
     }
     setNote("");
@@ -148,6 +156,8 @@ export default function Reports() {
     setModal({ open: false, mode: "view", report: null });
     setFormBulto("");
     setFormDescription("");
+    setEditTrackingNumber("");
+    setEditDescription("");
     setAttachPhoto(false);
     setPhotoFile(null);
     setCreateAgencyId("");
@@ -189,15 +199,29 @@ export default function Reports() {
   const handleUpdate = async (event) => {
     event.preventDefault();
     if (!modal.report) return;
+
+    const trackingNumber = editTrackingNumber.trim();
+    const description = editDescription.trim();
+    if (!trackingNumber || !description) {
+      notify("El HBL y la descripción son obligatorios.", "warning");
+      return;
+    }
+
     setSaving(true);
     try {
       const payload = {};
-      if (statusToSet && statusToSet !== modal.report.status) {
+      if (trackingNumber !== modal.report.trackingNumber) {
+        payload.trackingNumber = trackingNumber;
+      }
+      if (description !== modal.report.description) {
+        payload.description = description;
+      }
+      if (canChangeStatus && statusToSet && statusToSet !== modal.report.status) {
         payload.status = statusToSet;
       }
       if (note.trim()) payload.notes = note.trim();
       if (Object.keys(payload).length === 0) {
-        notify("Selecciona un nuevo estado o agrega una respuesta.", "warning");
+        notify("Modifica un dato, cambia el estado o agrega una respuesta.", "warning");
         return;
       }
       await api.patch(`/reports/${modal.report.id}`, payload);
@@ -588,18 +612,41 @@ export default function Reports() {
                 </dl>
 
                 <label className="field">
-                  <span>Cambiar estado</span>
-                  <select
-                    value={statusToSet}
-                    onChange={(event) => setStatusToSet(event.target.value)}
-                  >
-                    {STATUSES.map((status) => (
-                      <option key={status} value={status}>
-                        {STATUS_LABELS[status]}
-                      </option>
-                    ))}
-                  </select>
+                  <span>Número del bulto (HBL) *</span>
+                  <input
+                    value={editTrackingNumber}
+                    onChange={(event) => setEditTrackingNumber(event.target.value)}
+                    maxLength={60}
+                    required
+                  />
                 </label>
+
+                <label className="field">
+                  <span>Descripción del reporte *</span>
+                  <textarea
+                    value={editDescription}
+                    onChange={(event) => setEditDescription(event.target.value)}
+                    rows={3}
+                    maxLength={2000}
+                    required
+                  />
+                </label>
+
+                {canChangeStatus && (
+                  <label className="field">
+                    <span>Cambiar estado</span>
+                    <select
+                      value={statusToSet}
+                      onChange={(event) => setStatusToSet(event.target.value)}
+                    >
+                      {STATUSES.map((status) => (
+                        <option key={status} value={status}>
+                          {STATUS_LABELS[status]}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                )}
 
                 <label className="field">
                   <span>Respuesta / nota</span>

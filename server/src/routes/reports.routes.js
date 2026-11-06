@@ -19,7 +19,7 @@ const {
   resolveAgencyScope,
 } = require("../auth/middleware");
 const { parseId } = require("../lib/params");
-const { conflict, notFound } = require("../lib/errors");
+const { conflict, forbidden, notFound } = require("../lib/errors");
 
 const router = Router();
 
@@ -106,6 +106,9 @@ router.patch("/:id", requireRole("agency_admin", "agency_user", "super_admin"), 
   if (!report) throw notFound("Reporte no encontrado");
 
   const data = validate(reportUpdateSchema, req.body);
+  if (data.status !== undefined && req.user.role !== "super_admin") {
+    throw forbidden("Solo el administrador del sistema puede cambiar el estado");
+  }
   const { statusNotes, notes, ...fields } = data;
 
   if (fields.trackingNumber && fields.trackingNumber !== report.trackingNumber) {

@@ -158,7 +158,7 @@ test("las estadísticas respetan el alcance de la agencia", async () => {
 test("cambiar el estado agrega una entrada al historial", async () => {
   const res = await request(app)
     .patch(`/api/reports/${data.reportA.id}`)
-    .set(auth(data.tokens.adminA))
+    .set(auth(data.tokens.superAdmin))
     .send({ status: "en_transito", statusNotes: "Salida a ruta" });
 
   assert.equal(res.status, 200);
@@ -173,6 +173,26 @@ test("cambiar el estado agrega una entrada al historial", async () => {
   assert.equal(history.body.items[1].notes, "Salida a ruta");
 });
 
+test("solo el superadministrador puede cambiar el estado", async () => {
+  const res = await request(app)
+    .patch(`/api/reports/${data.reportA.id}`)
+    .set(auth(data.tokens.adminA))
+    .send({ status: "en_transito" });
+
+  assert.equal(res.status, 403);
+  assert.equal(res.body.error.code, "FORBIDDEN");
+});
+
+test("rechaza una descripción vacía al editar", async () => {
+  const res = await request(app)
+    .patch(`/api/reports/${data.reportA.id}`)
+    .set(auth(data.tokens.adminA))
+    .send({ description: "   " });
+
+  assert.equal(res.status, 400);
+  assert.equal(res.body.error.code, "VALIDATION_ERROR");
+});
+
 test("no permite duplicar la guía al editar", async () => {
   await request(app)
     .post("/api/reports")
@@ -185,6 +205,20 @@ test("no permite duplicar la guía al editar", async () => {
     .send({ trackingNumber: "MARY-400" });
 
   assert.equal(res.status, 409);
+});
+
+test("permite editar el HBL y la descripción del reporte", async () => {
+  const res = await request(app)
+    .patch(`/api/reports/${data.reportA.id}`)
+    .set(auth(data.tokens.adminA))
+    .send({
+      trackingNumber: "MARY-HBL-UPDATED",
+      description: "Descripción actualizada",
+    });
+
+  assert.equal(res.status, 200);
+  assert.equal(res.body.report.trackingNumber, "MARY-HBL-UPDATED");
+  assert.equal(res.body.report.description, "Descripción actualizada");
 });
 
 test("pagina los resultados", async () => {
