@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 
 import { api } from "../api";
+import DataTable from "../components/DataTable";
 import { formatDateTime } from "../constants";
 import { notify } from "../notifications";
 
@@ -53,6 +54,36 @@ export default function Agencies() {
     }
   };
 
+  const columns = [
+    { key: "name", label: "Nombre" },
+    { key: "code", label: "Código", className: "mono" },
+    {
+      key: "active",
+      label: "Estado",
+      render: (agency) => (
+        <span className={agency.active ? "pill pill-on" : "pill pill-off"}>
+          {agency.active ? "Activa" : "Inactiva"}
+        </span>
+      ),
+    },
+    { key: "createdAt", label: "Creada", render: (agency) => formatDateTime(agency.createdAt) },
+    {
+      key: "actions",
+      label: "Acciones",
+      headerClassName: "actions-head",
+      cellClassName: "actions-cell",
+      render: (agency) => (
+        <button
+          type="button"
+          className="btn btn-small"
+          onClick={() => toggleActive(agency)}
+        >
+          {agency.active ? "Desactivar" : "Activar"}
+        </button>
+      ),
+    },
+  ];
+
   return (
     <div className="page">
       <header className="page-header">
@@ -68,55 +99,18 @@ export default function Agencies() {
         <section className="card">
           <div className="card-header">
             <h2>Agencias registradas</h2>
-            <span className="muted">{agencies.length}</span>
+            <span className="list-count" aria-label={`${agencies.length} agencias`}>
+              {agencies.length}
+            </span>
           </div>
 
-          {loading ? (
-            <p className="empty">Cargando agencias…</p>
-          ) : agencies.length === 0 ? (
-            <p className="empty">Aún no hay agencias registradas.</p>
-          ) : (
-            <div className="table-wrap">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Nombre</th>
-                    <th>Código</th>
-                    <th>Estado</th>
-                    <th>Creada</th>
-                    <th />
-                  </tr>
-                </thead>
-                <tbody>
-                  {agencies.map((agency) => (
-                    <tr key={agency.id}>
-                      <td>{agency.name}</td>
-                      <td className="mono">{agency.code}</td>
-                      <td>
-                        <span
-                          className={
-                            agency.active ? "pill pill-on" : "pill pill-off"
-                          }
-                        >
-                          {agency.active ? "Activa" : "Inactiva"}
-                        </span>
-                      </td>
-                      <td>{formatDateTime(agency.createdAt)}</td>
-                      <td className="actions-cell">
-                        <button
-                          type="button"
-                          className="btn btn-small"
-                          onClick={() => toggleActive(agency)}
-                        >
-                          {agency.active ? "Desactivar" : "Activar"}
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
+          <DataTable
+            columns={columns}
+            rows={agencies}
+            loading={loading}
+            loadingMessage="Cargando agencias..."
+            emptyMessage="Aún no hay agencias registradas."
+          />
         </section>
 
         <section className="card">

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 
 import { api } from "../api";
 import { useAuth } from "../auth/AuthContext";
+import DataTable from "../components/DataTable";
 import { ROLE_LABELS } from "../constants";
 import { notify } from "../notifications";
 
@@ -93,6 +94,46 @@ export default function Users() {
   const availableRoles = isSuper
     ? ["super_admin", "agency_admin", "agency_user"]
     : ["agency_admin", "agency_user"];
+  const columns = [
+    {
+      key: "name",
+      label: "Nombre",
+      render: (item) => (
+        <>
+          {item.name}
+          {item.id === user.id && <span className="tag">Tú</span>}
+        </>
+      ),
+    },
+    { key: "email", label: "Correo" },
+    { key: "role", label: "Rol", render: (item) => ROLE_LABELS[item.role] || item.role },
+    { key: "agencyName", label: "Agencia", render: (item) => item.agencyName || "—" },
+    {
+      key: "active",
+      label: "Estado",
+      render: (item) => (
+        <span className={item.active ? "pill pill-on" : "pill pill-off"}>
+          {item.active ? "Activo" : "Inactivo"}
+        </span>
+      ),
+    },
+    {
+      key: "actions",
+      label: "Acciones",
+      headerClassName: "actions-head",
+      cellClassName: "actions-cell",
+      render: (item) => (
+        <button
+          type="button"
+          className="btn btn-small"
+          disabled={item.id === user.id}
+          onClick={() => toggleActive(item)}
+        >
+          {item.active ? "Desactivar" : "Activar"}
+        </button>
+      ),
+    },
+  ];
 
   return (
     <div className="page">
@@ -111,63 +152,18 @@ export default function Users() {
         <section className="card">
           <div className="card-header">
             <h2>Usuarios registrados</h2>
-            <span className="muted">{users.length}</span>
+            <span className="list-count" aria-label={`${users.length} usuarios`}>
+              {users.length}
+            </span>
           </div>
 
-          {loading ? (
-            <p className="empty">Cargando usuarios…</p>
-          ) : users.length === 0 ? (
-            <p className="empty">No hay usuarios registrados.</p>
-          ) : (
-            <div className="table-wrap">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Nombre</th>
-                    <th>Correo</th>
-                    <th>Rol</th>
-                    <th>Agencia</th>
-                    <th>Estado</th>
-                    <th />
-                  </tr>
-                </thead>
-                <tbody>
-                  {users.map((item) => (
-                    <tr key={item.id}>
-                      <td>
-                        {item.name}
-                        {item.id === user.id && (
-                          <span className="tag">Tú</span>
-                        )}
-                      </td>
-                      <td>{item.email}</td>
-                      <td>{ROLE_LABELS[item.role] || item.role}</td>
-                      <td>{item.agencyName || "—"}</td>
-                      <td>
-                        <span
-                          className={
-                            item.active ? "pill pill-on" : "pill pill-off"
-                          }
-                        >
-                          {item.active ? "Activo" : "Inactivo"}
-                        </span>
-                      </td>
-                      <td className="actions-cell">
-                        <button
-                          type="button"
-                          className="btn btn-small"
-                          disabled={item.id === user.id}
-                          onClick={() => toggleActive(item)}
-                        >
-                          {item.active ? "Desactivar" : "Activar"}
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
+          <DataTable
+            columns={columns}
+            rows={users}
+            loading={loading}
+            loadingMessage="Cargando usuarios..."
+            emptyMessage="No hay usuarios registrados."
+          />
         </section>
 
         <section className="card">

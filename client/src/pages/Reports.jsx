@@ -4,6 +4,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { api } from "../api";
 import { useAuth } from "../auth/AuthContext";
 import ConfirmDialog from "../components/ConfirmDialog";
+import DataTable from "../components/DataTable";
 import StatusBadge from "../components/StatusBadge";
 import { STATUSES, STATUS_LABELS, formatDateTime, todayISO } from "../constants";
 import { notify } from "../notifications";
@@ -254,6 +255,60 @@ export default function Reports() {
   const items = useMemo(() => data.items, [data.items]);
   const detail = modal.report?.report || modal.report;
   const history = modal.report?.history || [];
+  const columns = [
+    { key: "trackingNumber", label: "Número de bulto", className: "mono" },
+    {
+      key: "status",
+      label: "Estado",
+      render: (item) => <StatusBadge status={item.status} />,
+    },
+    ...(user.role === "super_admin"
+      ? [{ key: "agencyName", label: "Agencia" }]
+      : []),
+    { key: "createdByName", label: "Creado por" },
+    { key: "createdAt", label: "Fecha creación", render: (item) => formatDateTime(item.createdAt) },
+    { key: "lastNote", label: "Última respuesta", render: (item) => item.lastNote || "—" },
+    {
+      key: "actions",
+      label: "Acciones",
+      headerClassName: "actions-head",
+      cellClassName: "actions-cell",
+      render: (item) => (
+        <div className="action-group">
+          {canView && (
+            <button
+              type="button"
+              className="icon-button"
+              title="Visualizar"
+              onClick={() => openView(item)}
+            >
+              <EyeIcon />
+            </button>
+          )}
+          {canModify && (
+            <button
+              type="button"
+              className="icon-button"
+              title="Modificar"
+              onClick={() => openEdit(item)}
+            >
+              <EditIcon />
+            </button>
+          )}
+          {canDelete && (
+            <button
+              type="button"
+              className="icon-button icon-button-danger"
+              title="Eliminar"
+              onClick={() => setPendingDelete(item)}
+            >
+              <TrashIcon />
+            </button>
+          )}
+        </div>
+      ),
+    },
+  ];
 
   return (
     <div className="page">
@@ -272,6 +327,9 @@ export default function Reports() {
         <div className="card-header">
           <div className="table-title">
             <h2>Listado de reportes</h2>
+            <span className="list-count" aria-label={`${data.total} reportes`}>
+              {data.total}
+            </span>
           </div>
           {canCreate && (
             <button
@@ -321,75 +379,13 @@ export default function Reports() {
           )}
         </div>
 
-        {loading ? (
-          <p className="empty">Cargando reportes…</p>
-        ) : items.length === 0 ? (
-          <p className="empty">No hay reportes registrados.</p>
-        ) : (
-          <div className="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>Número de bulto</th>
-                  <th>Estado</th>
-                  {user.role === "super_admin" && <th>Agencia</th>}
-                  <th>Creado por</th>
-                  <th>Fecha creación</th>
-                  <th>Última respuesta</th>
-                  <th className="actions-head">Acciones</th>
-                </tr>
-              </thead>
-              <tbody>
-                {items.map((item) => (
-                  <tr key={item.id}>
-                    <td className="mono">{item.trackingNumber}</td>
-                    <td>
-                      <StatusBadge status={item.status} />
-                    </td>
-                    {user.role === "super_admin" && <td>{item.agencyName}</td>}
-                    <td>{item.createdByName}</td>
-                    <td>{formatDateTime(item.createdAt)}</td>
-                    <td>{item.lastNote || "—"}</td>
-                    <td className="actions-cell">
-                      <div className="action-group">
-                        {canView && (
-                          <button
-                            type="button"
-                            className="icon-button"
-                            title="Visualizar"
-                            onClick={() => openView(item)}
-                          >
-                            <EyeIcon />
-                          </button>
-                        )}
-                        {canModify && (
-                          <button
-                            type="button"
-                            className="icon-button"
-                            title="Modificar"
-                            onClick={() => openEdit(item)}
-                          >
-                            <EditIcon />
-                          </button>
-                        )}
-                        {canDelete && (
-                          <button
-                            type="button"
-                            className="icon-button icon-button-danger"
-                            title="Eliminar"
-                            onClick={() => setPendingDelete(item)}
-                          >
-                            <TrashIcon />
-                          </button>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+        <DataTable
+          columns={columns}
+          rows={items}
+          loading={loading}
+          loadingMessage="Cargando reportes..."
+          emptyMessage="No hay reportes registrados."
+        />
 
         {data.pages > 1 && (
           <div className="pagination">
