@@ -2,7 +2,6 @@ import { useCallback, useEffect, useState } from "react";
 
 import { api } from "../api";
 import { useAuth } from "../auth/AuthContext";
-import CrudTabs from "../components/CrudTabs";
 import DataTable from "../components/DataTable";
 import { ROLE_LABELS } from "../constants";
 import { notify } from "../notifications";
@@ -20,7 +19,6 @@ function emptyForm() {
 export default function Users() {
   const { user } = useAuth();
   const isSuper = user.role === "super_admin";
-  const [activeOperation, setActiveOperation] = useState("read");
 
   const [users, setUsers] = useState([]);
   const [agencies, setAgencies] = useState([]);
@@ -96,11 +94,6 @@ export default function Users() {
   const availableRoles = isSuper
     ? ["super_admin", "agency_admin", "agency_user"]
     : ["agency_admin", "agency_user"];
-  const operations = [
-    { value: "read", label: "Consultar" },
-    { value: "create", label: "Crear" },
-    { value: "update", label: "Actualizar" },
-  ];
   const columns = [
     {
       key: "name",
@@ -124,8 +117,7 @@ export default function Users() {
         </span>
       ),
     },
-    ...(activeOperation === "update"
-      ? [{
+    {
       key: "actions",
       label: "Acciones",
       headerClassName: "actions-head",
@@ -140,8 +132,7 @@ export default function Users() {
           {item.active ? "Desactivar" : "Activar"}
         </button>
       ),
-      }]
-      : []),
+    },
   ];
 
   return (
@@ -157,42 +148,26 @@ export default function Users() {
         </div>
       </header>
 
-      <CrudTabs
-        moduleId="users"
-        moduleName="usuarios"
-        operations={operations}
-        value={activeOperation}
-        onChange={setActiveOperation}
-      />
+      <div className="split-layout">
+        <section className="card">
+          <div className="card-header">
+            <h2>Usuarios registrados</h2>
+            <span className="list-count" aria-label={`${users.length} usuarios`}>
+              {users.length}
+            </span>
+          </div>
 
-      <div
-        className="split-layout crud-panel"
-        role="tabpanel"
-        id="users-panel"
-        aria-labelledby={`users-tab-${activeOperation}`}
-      >
-        {activeOperation !== "create" && (
-          <section className="card">
-            <div className="card-header">
-              <h2>{activeOperation === "read" ? "Consultar usuarios" : "Actualizar usuarios"}</h2>
-              <span className="list-count" aria-label={`${users.length} usuarios`}>
-                {users.length}
-              </span>
-            </div>
+          <DataTable
+            columns={columns}
+            rows={users}
+            loading={loading}
+            loadingMessage="Cargando usuarios..."
+            emptyMessage="No hay usuarios registrados."
+          />
+        </section>
 
-            <DataTable
-              columns={columns}
-              rows={users}
-              loading={loading}
-              loadingMessage="Cargando usuarios..."
-              emptyMessage="No hay usuarios registrados."
-            />
-          </section>
-        )}
-
-        {activeOperation === "create" && (
-          <section className="card">
-            <h2>Crear usuario</h2>
+        <section className="card">
+          <h2>Nuevo usuario</h2>
             <form className="form compact" onSubmit={handleSubmit}>
             <label className="field">
               <span>Nombre *</span>
@@ -260,8 +235,7 @@ export default function Users() {
               {submitting ? "Creando…" : "Crear usuario"}
             </button>
             </form>
-          </section>
-        )}
+        </section>
       </div>
     </div>
   );

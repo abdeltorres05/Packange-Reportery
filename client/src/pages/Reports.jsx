@@ -4,7 +4,6 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { api } from "../api";
 import { useAuth } from "../auth/AuthContext";
 import ConfirmDialog from "../components/ConfirmDialog";
-import CrudTabs from "../components/CrudTabs";
 import DataTable from "../components/DataTable";
 import StatusBadge from "../components/StatusBadge";
 import { STATUSES, STATUS_LABELS, formatDateTime, todayISO } from "../constants";
@@ -33,9 +32,15 @@ const TrashIcon = () => (
   </svg>
 );
 
+const PlusIcon = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <line x1="12" y1="5" x2="12" y2="19" />
+    <line x1="5" y1="12" x2="19" y2="12" />
+  </svg>
+);
+
 export default function Reports() {
   const { user } = useAuth();
-  const [activeOperation, setActiveOperation] = useState("read");
   const navigate = useNavigate();
   const location = useLocation();
   const initialStatus =
@@ -108,6 +113,17 @@ export default function Reports() {
     updateFilter("q", search.trim());
   };
 
+  const openCreate = () => {
+    setModal({ open: true, mode: "create", report: null });
+    setFormBulto("");
+    setFormDescription("");
+    setAttachPhoto(false);
+    setPhotoFile(null);
+    setCreateAgencyId("");
+    setNote("");
+    setStatusToSet("pendiente");
+  };
+
   const openView = async (report) => {
     try {
       const detail = await api.get(`/reports/${report.id}`);
@@ -173,7 +189,6 @@ export default function Reports() {
 
       notify("Reporte creado correctamente.", "success");
       closeModal();
-      setActiveOperation("read");
       fetchList();
     } catch (err) {
       notify(err.message, "error");
@@ -240,12 +255,6 @@ export default function Reports() {
   const items = useMemo(() => data.items, [data.items]);
   const detail = modal.report?.report || modal.report;
   const history = modal.report?.history || [];
-  const operations = [
-    { value: "read", label: "Consultar" },
-    ...(canCreate ? [{ value: "create", label: "Crear" }] : []),
-    ...(canModify ? [{ value: "update", label: "Actualizar" }] : []),
-    ...(canDelete ? [{ value: "delete", label: "Eliminar" }] : []),
-  ];
   const columns = [
     { key: "trackingNumber", label: "Número de bulto", className: "mono" },
     {
@@ -257,65 +266,59 @@ export default function Reports() {
       ? [{ key: "agencyName", label: "Agencia" }]
       : []),
     { key: "createdByName", label: "Creado por" },
-    { key: "createdAt", label: "Fecha creación", render: (item) => formatDateTime(item.createdAt) },
-    { key: "lastNote", label: "Última respuesta", render: (item) => item.lastNote || "—" },
-    ...(activeOperation === "read"
-      ? [{
-        key: "actions",
-        label: "Acciones",
-        headerClassName: "actions-head",
-        cellClassName: "actions-cell",
-        render: (item) => (
-          <button
-            type="button"
-            className="icon-button"
-            title="Visualizar"
-            aria-label={`Visualizar reporte ${item.trackingNumber}`}
-            onClick={() => openView(item)}
-          >
-            <EyeIcon />
-          </button>
-        ),
-      }]
-      : []),
-    ...(activeOperation === "update"
-      ? [{
-        key: "actions",
-        label: "Acciones",
-        headerClassName: "actions-head",
-        cellClassName: "actions-cell",
-        render: (item) => (
-          <button
-            type="button"
-            className="icon-button"
-            title="Modificar"
-            aria-label={`Modificar reporte ${item.trackingNumber}`}
-            onClick={() => openEdit(item)}
-          >
-            <EditIcon />
-          </button>
-        ),
-      }]
-      : []),
-    ...(activeOperation === "delete"
-      ? [{
-        key: "actions",
-        label: "Acciones",
-        headerClassName: "actions-head",
-        cellClassName: "actions-cell",
-        render: (item) => (
-          <button
-            type="button"
-            className="icon-button icon-button-danger"
-            title="Eliminar"
-            aria-label={`Eliminar reporte ${item.trackingNumber}`}
-            onClick={() => setPendingDelete(item)}
-          >
-            <TrashIcon />
-          </button>
-        ),
-      }]
-      : []),
+    {
+      key: "createdAt",
+      label: "Fecha creación",
+      render: (item) => formatDateTime(item.createdAt),
+    },
+    {
+      key: "lastNote",
+      label: "Última respuesta",
+      render: (item) => item.lastNote || "—",
+    },
+    {
+      key: "actions",
+      label: "Acciones",
+      headerClassName: "actions-head",
+      cellClassName: "actions-cell",
+      render: (item) => (
+        <div className="action-group">
+          {canView && (
+            <button
+              type="button"
+              className="icon-button"
+              title="Visualizar"
+              aria-label={`Visualizar reporte ${item.trackingNumber}`}
+              onClick={() => openView(item)}
+            >
+              <EyeIcon />
+            </button>
+          )}
+          {canModify && (
+            <button
+              type="button"
+              className="icon-button"
+              title="Modificar"
+              aria-label={`Modificar reporte ${item.trackingNumber}`}
+              onClick={() => openEdit(item)}
+            >
+              <EditIcon />
+            </button>
+          )}
+          {canDelete && (
+            <button
+              type="button"
+              className="icon-button icon-button-danger"
+              title="Eliminar"
+              aria-label={`Eliminar reporte ${item.trackingNumber}`}
+              onClick={() => setPendingDelete(item)}
+            >
+              <TrashIcon />
+            </button>
+          )}
+        </div>
+      ),
+    },
   ];
 
   return (
@@ -331,114 +334,28 @@ export default function Reports() {
         </div>
       </header>
 
-      <CrudTabs
-        moduleId="reports"
-        moduleName="reportes"
-        operations={operations}
-        value={activeOperation}
-        onChange={setActiveOperation}
-      />
-
-      <section
-        className="card crud-panel"
-        role="tabpanel"
-        id="reports-panel"
-        aria-labelledby={`reports-tab-${activeOperation}`}
-      >
-        {activeOperation === "create" ? (
-          <div className="operation-view">
-            <div className="card-header">
-              <h2>Crear reporte</h2>
-            </div>
-            <form className="form" onSubmit={handleCreate}>
-              <label className="field">
-                <span>Número del bulto (HBL) *</span>
-                <input
-                  value={formBulto}
-                  onChange={(event) => setFormBulto(event.target.value)}
-                  placeholder="Ej. HBL-123456"
-                  required
-                />
-              </label>
-              <label className="field">
-                <span>Descripción del reporte *</span>
-                <textarea
-                  value={formDescription}
-                  onChange={(event) => setFormDescription(event.target.value)}
-                  rows={3}
-                  maxLength={2000}
-                  placeholder="Describe el problema del bulto"
-                  required
-                />
-              </label>
-              {user.role === "super_admin" && (
-                <label className="field">
-                  <span>Agencia *</span>
-                  <select
-                    value={createAgencyId}
-                    onChange={(event) => setCreateAgencyId(event.target.value)}
-                    required
-                  >
-                    <option value="">Seleccionar agencia</option>
-                    {agencies.map((agency) => (
-                      <option key={agency.id} value={agency.id}>
-                        {agency.name}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-              )}
-              <label className="photo-option">
-                <input
-                  type="checkbox"
-                  checked={attachPhoto}
-                  onChange={(event) => {
-                    setAttachPhoto(event.target.checked);
-                    setPhotoFile(null);
-                  }}
-                />
-                <span>Adjuntar una foto</span>
-              </label>
-              {attachPhoto && (
-                <label className="field">
-                  <span>Foto (JPEG, PNG o WebP) *</span>
-                  <input
-                    type="file"
-                    accept="image/jpeg,image/png,image/webp"
-                    required
-                    onChange={(event) => setPhotoFile(event.target.files?.[0] || null)}
-                  />
-                  {photoFile && <small className="muted">{photoFile.name}</small>}
-                </label>
-              )}
-              <div className="form-actions">
-                <button type="submit" className="btn btn-primary" disabled={saving}>
-                  {saving ? "Creando…" : "Crear reporte"}
-                </button>
-                <button type="button" className="btn btn-ghost" onClick={closeModal}>
-                  Limpiar formulario
-                </button>
-              </div>
-            </form>
+      <section className="card">
+        <div className="card-header">
+          <div className="table-title">
+            <h2>Listado de reportes</h2>
+            <span className="list-count" aria-label={`${data.total} reportes`}>
+              {data.total}
+            </span>
           </div>
-        ) : (
-          <>
-            <div className="card-header">
-              <div className="table-title">
-                <h2>
-                  {activeOperation === "read"
-                    ? "Consultar reportes"
-                    : activeOperation === "update"
-                      ? "Actualizar reportes"
-                      : "Eliminar reportes"}
-                </h2>
-                <span className="list-count" aria-label={`${data.total} reportes`}>
-                  {data.total}
-                </span>
-              </div>
-            </div>
+          {canCreate && (
+            <button
+              type="button"
+              className="icon-button report-create-button"
+              onClick={openCreate}
+              title="Crear reporte"
+              aria-label="Crear reporte"
+            >
+              <PlusIcon />
+            </button>
+          )}
+        </div>
 
-            <div className="filters-inline">
+        <div className="filters-inline">
               <form onSubmit={handleSearch}>
                 <input
                   type="search"
@@ -471,18 +388,18 @@ export default function Reports() {
                   ))}
                 </select>
               )}
-            </div>
+        </div>
 
-            <DataTable
-              columns={columns}
-              rows={items}
-              loading={loading}
-              loadingMessage="Cargando reportes..."
-              emptyMessage="No hay reportes registrados."
-            />
+        <DataTable
+          columns={columns}
+          rows={items}
+          loading={loading}
+          loadingMessage="Cargando reportes..."
+          emptyMessage="No hay reportes registrados."
+        />
 
-            {data.pages > 1 && (
-              <div className="pagination">
+        {data.pages > 1 && (
+          <div className="pagination">
                 <button
                   type="button"
                   className="btn btn-small"
@@ -506,9 +423,7 @@ export default function Reports() {
                 >
                   Siguiente
                 </button>
-              </div>
-            )}
-          </>
+          </div>
         )}
       </section>
 
@@ -517,7 +432,13 @@ export default function Reports() {
           <div className="modal">
             <header className="modal-header">
               <div>
-                <h2>{modal.mode === "edit" ? "Modificar reporte" : "Visualizar reporte"}</h2>
+                <h2>
+                  {modal.mode === "create"
+                    ? "Nuevo reporte"
+                    : modal.mode === "edit"
+                      ? "Modificar reporte"
+                      : "Visualizar reporte"}
+                </h2>
                 {detail && (
                   <p className="muted">
                     {detail.trackingNumber}
@@ -537,6 +458,87 @@ export default function Reports() {
                 ×
               </button>
             </header>
+
+            {modal.mode === "create" && (
+              <form className="form" onSubmit={handleCreate}>
+                <label className="field">
+                  <span>Número del bulto (HBL) *</span>
+                  <input
+                    value={formBulto}
+                    onChange={(event) => setFormBulto(event.target.value)}
+                    placeholder="Ej. HBL-123456"
+                    required
+                  />
+                </label>
+                <label className="field">
+                  <span>Descripción del reporte *</span>
+                  <textarea
+                    value={formDescription}
+                    onChange={(event) => setFormDescription(event.target.value)}
+                    rows={3}
+                    maxLength={2000}
+                    placeholder="Describe el problema del bulto"
+                    required
+                  />
+                </label>
+                {user.role === "super_admin" && (
+                  <label className="field">
+                    <span>Agencia *</span>
+                    <select
+                      value={createAgencyId}
+                      onChange={(event) => setCreateAgencyId(event.target.value)}
+                      required
+                    >
+                      <option value="">Seleccionar agencia</option>
+                      {agencies.map((agency) => (
+                        <option key={agency.id} value={agency.id}>
+                          {agency.name}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                )}
+                <label className="photo-option">
+                  <input
+                    type="checkbox"
+                    checked={attachPhoto}
+                    onChange={(event) => {
+                      setAttachPhoto(event.target.checked);
+                      setPhotoFile(null);
+                    }}
+                  />
+                  <span>Adjuntar una foto</span>
+                </label>
+                {attachPhoto && (
+                  <label className="field">
+                    <span>Foto (JPEG, PNG o WebP) *</span>
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp"
+                      required
+                      onChange={(event) => setPhotoFile(event.target.files?.[0] || null)}
+                    />
+                    {photoFile && <small className="muted">{photoFile.name}</small>}
+                  </label>
+                )}
+                <div className="form-actions">
+                  <button
+                    type="submit"
+                    className="btn report-modal-action"
+                    disabled={saving}
+                  >
+                    {saving ? "Creando…" : "Crear reporte"}
+                  </button>
+                  <button
+                    type="button"
+                    className="btn report-modal-action"
+                    onClick={closeModal}
+                  >
+                    Cancelar
+                  </button>
+                </div>
+              </form>
+            )}
 
             {modal.mode === "view" && detail && (
               <div className="modal-body">
