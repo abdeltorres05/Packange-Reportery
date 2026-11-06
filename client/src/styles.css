@@ -358,9 +358,16 @@ code {
 }
 
 .nav-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
   padding: 0.6rem 0.9rem;
   border-radius: 10px;
   color: var(--text-muted);
+}
+
+.nav-icon {
+  flex: none;
 }
 
 .nav-link.active {
