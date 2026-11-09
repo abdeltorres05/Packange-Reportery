@@ -4,11 +4,11 @@ import { Link } from "react-router-dom";
 import { api } from "../api";
 import { useAuth } from "../auth/AuthContext";
 import { STATUSES, STATUS_LABELS } from "../constants";
+import { notify } from "../notifications";
 
 export default function Dashboard() {
   const { user } = useAuth();
   const [stats, setStats] = useState(null);
-  const [error, setError] = useState("");
 
   useEffect(() => {
     let active = true;
@@ -20,7 +20,7 @@ export default function Dashboard() {
         setStats(statsData);
       })
       .catch((err) => {
-        if (active) setError(err.message);
+        if (active) notify(err.message, "error");
       });
 
     return () => {
@@ -42,8 +42,6 @@ export default function Dashboard() {
           Ir a reportes
         </Link>
       </header>
-
-      {error && <div className="alert alert-error">{error}</div>}
 
       <section className="stats-grid">
         <article className="stat-card stat-total">

@@ -2,7 +2,9 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 
 import { api } from "../api";
+import { useAuth } from "../auth/AuthContext";
 import { STATUSES, STATUS_LABELS, todayISO } from "../constants";
+import { notify } from "../notifications";
 
 function emptyForm() {
   return {
@@ -22,15 +24,16 @@ function emptyForm() {
 export default function ReportForm() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const isEdit = Boolean(id);
+  const canChangeStatus =
+    user.role === "agency_admin" || user.role === "super_admin";
 
   const [form, setForm] = useState(emptyForm);
   const [originalStatus, setOriginalStatus] = useState("pendiente");
   const [files, setFiles] = useState([]);
   const [loading, setLoading] = useState(isEdit);
   const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState("");
-  const [details, setDetails] = useState([]);
 
   useEffect(() => {
     if (!isEdit) return;
@@ -55,7 +58,7 @@ export default function ReportForm() {
         setOriginalStatus(report.status);
       })
       .catch((err) => {
-        if (active) setError(err.message);
+        if (active) notify(err.message, "error");
       })
       .finally(() => {
         if (active) setLoading(false);
@@ -73,8 +76,6 @@ export default function ReportForm() {
   const handleSubmit = async (event) => {
     event.preventDefault();
     setSubmitting(true);
-    setError("");
-    setDetails([]);
 
     const payload = {
       trackingNumber: form.trackingNumber,
@@ -83,7 +84,7 @@ export default function ReportForm() {
       recipientName: form.recipientName,
       recipientPhone: form.recipientPhone.trim() || null,
       reportDate: form.reportDate,
-      status: form.status,
+      ...(canChangeStatus ? { status: form.status } : {}),
       description: form.description,
       observations: form.observations.trim() || null,
     };
@@ -94,6 +95,7 @@ export default function ReportForm() {
           payload.statusNotes = form.statusNotes.trim() || null;
         }
         await api.patch(`/reports/${id}`, payload);
+        notify("Reporte actualizado correctamente.", "warning");
         navigate(`/reportes/${id}`);
         return;
       }
@@ -107,16 +109,17 @@ export default function ReportForm() {
         try {
           await api.post(`/reports/${reportId}/photos`, data);
         } catch (photoError) {
-          window.alert(
-            `El reporte se creó, pero no se pudieron subir las fotos: ${photoError.message}`
-          );
+          notify(`El reporte se creó, pero no se pudieron subir las fotos: ${photoError.message}`, "warning");
         }
       }
 
+      notify("Reporte creado correctamente.", "success");
       navigate(`/reportes/${reportId}`);
     } catch (err) {
-      setError(err.message);
-      setDetails(err.details || []);
+      const details = (err.details || [])
+        .map((detail) => `${detail.path ? `${detail.path}: ` : ""}${detail.message}`)
+        .join("; ");
+      notify(details ? `${err.message}: ${details}` : err.message, "error");
     } finally {
       setSubmitting(false);
     }
@@ -133,33 +136,21 @@ export default function ReportForm() {
           <h1>{isEdit ? "Editar reporte" : "Nuevo reporte de bulto"}</h1>
           <p className="muted">
             {isEdit
-              ? "Actualiza los datos del bulto y su estado."
+              ? canChangeStatus
+                ? "Actualiza los datos del bulto y su estado."
+                : "Actualiza los datos del bulto. El estado solo puede cambiarlo un administrador."
               : "Registra la información y adjunta evidencias si lo necesitas."}
           </p>
         </div>
         <Link
           to={isEdit ? `/reportes/${id}` : "/reportes"}
-          className="btn btn-ghost"
+          className="icon-button form-close-button"
+          title="Cerrar formulario"
+          aria-label="Cerrar formulario"
         >
-          Cancelar
+          ×
         </Link>
       </header>
-
-      {error && (
-        <div className="alert alert-error">
-          <strong>{error}</strong>
-          {details.length > 0 && (
-            <ul>
-              {details.map((detail) => (
-                <li key={`${detail.path}-${detail.message}`}>
-                  {detail.path ? `${detail.path}: ` : ""}
-                  {detail.message}
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-      )}
 
       <form className="card form" onSubmit={handleSubmit}>
         <div className="form-grid">
@@ -221,19 +212,21 @@ export default function ReportForm() {
             />
           </label>
 
-          <label className="field">
-            <span>Estado *</span>
-            <select
-              value={form.status}
-              onChange={(event) => update("status", event.target.value)}
-            >
-              {STATUSES.map((status) => (
-                <option key={status} value={status}>
-                  {STATUS_LABELS[status]}
-                </option>
-              ))}
-            </select>
-          </label>
+          {(canChangeStatus || (!isEdit && user.role !== "agency_user")) && (
+            <label className="field">
+              <span>Estado *</span>
+              <select
+                value={form.status}
+                onChange={(event) => update("status", event.target.value)}
+              >
+                {STATUSES.map((status) => (
+                  <option key={status} value={status}>
+                    {STATUS_LABELS[status]}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
 
           {statusChanged && (
             <label className="field">

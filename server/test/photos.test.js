@@ -36,6 +36,14 @@ test("sube una foto y permite descargarla autenticado", async () => {
   assert.match(file.headers["content-type"], /image\/png/);
 });
 
+test("el superadministrador puede adjuntar fotos a un reporte", async () => {
+  const res = await upload(data.reportA.id, data.tokens.superAdmin);
+
+  assert.equal(res.status, 201);
+  assert.equal(res.body.photos.length, 1);
+  assert.equal(res.body.photos[0].reportId, data.reportA.id);
+});
+
 test("otra agencia no puede descargar la foto", async () => {
   const res = await upload(data.reportA.id, data.tokens.adminA);
   const photo = res.body.photos[0];
@@ -83,6 +91,17 @@ test("elimina una foto", async () => {
     .get(`/api/reports/${data.reportA.id}/photos/${photo.id}/file`)
     .set(auth(data.tokens.adminA));
   assert.equal(file.status, 404);
+});
+
+test("el superadministrador puede eliminar fotos en cualquier agencia", async () => {
+  const res = await upload(data.reportA.id, data.tokens.adminA);
+  const photo = res.body.photos[0];
+
+  const deleted = await request(app)
+    .delete(`/api/reports/${data.reportA.id}/photos/${photo.id}`)
+    .set(auth(data.tokens.superAdmin));
+
+  assert.equal(deleted.status, 204);
 });
 
 test("limita la cantidad de fotos por reporte", async () => {

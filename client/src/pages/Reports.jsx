@@ -3,8 +3,11 @@ import { useLocation, useNavigate } from "react-router-dom";
 
 import { api } from "../api";
 import { useAuth } from "../auth/AuthContext";
+import ConfirmDialog from "../components/ConfirmDialog";
+import DataTable from "../components/DataTable";
 import StatusBadge from "../components/StatusBadge";
-import { STATUSES, STATUS_LABELS, formatDateTime } from "../constants";
+import { STATUSES, STATUS_LABELS, formatDateTime, todayISO } from "../constants";
+import { notify } from "../notifications";
 
 const EyeIcon = () => (
   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
@@ -54,15 +57,22 @@ export default function Reports() {
   const [agencies, setAgencies] = useState([]);
   const [modal, setModal] = useState({ open: false, mode: "view", report: null });
   const [formBulto, setFormBulto] = useState("");
+  const [formDescription, setFormDescription] = useState("");
+  const [editTrackingNumber, setEditTrackingNumber] = useState("");
+  const [editDescription, setEditDescription] = useState("");
+  const [attachPhoto, setAttachPhoto] = useState(false);
+  const [photoFile, setPhotoFile] = useState(null);
+  const [createAgencyId, setCreateAgencyId] = useState("");
   const [note, setNote] = useState("");
   const [statusToSet, setStatusToSet] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
+  const [pendingDelete, setPendingDelete] = useState(null);
+  const [deleting, setDeleting] = useState(false);
 
   const canView = Boolean(user);
-  const canModify = user.role === "agency_admin" || user.role === "super_admin";
+  const canModify = ["agency_admin", "agency_user", "super_admin"].includes(user.role);
+  const canChangeStatus = user.role === "agency_admin" || user.role === "super_admin";
   const canDelete = user.role === "super_admin";
   const canCreate = user.role === "agency_admin" || user.role === "agency_user" || user.role === "super_admin";
 
@@ -87,9 +97,8 @@ export default function Reports() {
       .get(`/reports?${params.toString()}`)
       .then((result) => {
         setData(result);
-        setError("");
       })
-      .catch((err) => setError(err.message))
+      .catch((err) => notify(err.message, "error"))
       .finally(() => setLoading(false));
   }, [filters]);
 
@@ -107,33 +116,38 @@ export default function Reports() {
   const openCreate = () => {
     setModal({ open: true, mode: "create", report: null });
     setFormBulto("");
+    setFormDescription("");
+    setAttachPhoto(false);
+    setPhotoFile(null);
+    setCreateAgencyId("");
     setNote("");
     setStatusToSet("pendiente");
-    setError("");
-    setSuccess("");
   };
 
   const openView = async (report) => {
-    setError("");
-    setSuccess("");
     try {
       const detail = await api.get(`/reports/${report.id}`);
       setModal({ open: true, mode: "view", report: { ...report, ...detail } });
     } catch (err) {
+      notify(err.message, "error");
       setModal({ open: true, mode: "view", report: { ...report, history: [], photos: [] } });
     }
     setNote("");
   };
 
   const openEdit = async (report) => {
-    setError("");
-    setSuccess("");
     try {
       const detail = await api.get(`/reports/${report.id}`);
       setModal({ open: true, mode: "edit", report: { ...report, ...detail } });
-      setStatusToSet((detail.report || report).status);
+      const currentReport = detail.report || report;
+      setEditTrackingNumber(currentReport.trackingNumber || "");
+      setEditDescription(currentReport.description || "");
+      setStatusToSet(currentReport.status);
     } catch (err) {
+      notify(err.message, "error");
       setModal({ open: true, mode: "edit", report: { ...report, history: [] } });
+      setEditTrackingNumber(report.trackingNumber || "");
+      setEditDescription(report.description || "");
       setStatusToSet(report.status);
     }
     setNote("");
@@ -142,21 +156,42 @@ export default function Reports() {
   const closeModal = () => {
     setModal({ open: false, mode: "view", report: null });
     setFormBulto("");
+    setFormDescription("");
+    setEditTrackingNumber("");
+    setEditDescription("");
+    setAttachPhoto(false);
+    setPhotoFile(null);
+    setCreateAgencyId("");
     setNote("");
   };
 
   const handleCreate = async (event) => {
     event.preventDefault();
     setSaving(true);
-    setError("");
-    setSuccess("");
     try {
-      await api.post("/reports", { bultoNumber: formBulto.trim() });
-      setSuccess("Reporte creado.");
+      const payload = {
+        trackingNumber: formBulto.trim(),
+        description: formDescription.trim(),
+        reportDate: todayISO(),
+        ...(user.role === "super_admin" ? { agencyId: Number(createAgencyId) } : {}),
+      };
+      const created = await api.post("/reports", payload);
+
+      if (photoFile) {
+        const formData = new FormData();
+        formData.append("photos", photoFile);
+        try {
+          await api.post(`/reports/${created.report.id}/photos`, formData);
+        } catch (photoError) {
+          notify(`El reporte se creó, pero no se pudo subir la foto: ${photoError.message}`, "warning");
+        }
+      }
+
+      notify("Reporte creado correctamente.", "success");
       closeModal();
       fetchList();
     } catch (err) {
-      setError(err.message);
+      notify(err.message, "error");
     } finally {
       setSaving(false);
     }
@@ -165,48 +200,126 @@ export default function Reports() {
   const handleUpdate = async (event) => {
     event.preventDefault();
     if (!modal.report) return;
+
+    const trackingNumber = editTrackingNumber.trim();
+    const description = editDescription.trim();
+    if (!trackingNumber || !description) {
+      notify("El HBL y la descripción son obligatorios.", "warning");
+      return;
+    }
+
     setSaving(true);
-    setError("");
-    setSuccess("");
     try {
       const payload = {};
-      if (statusToSet && statusToSet !== modal.report.status) {
+      if (trackingNumber !== modal.report.trackingNumber) {
+        payload.trackingNumber = trackingNumber;
+      }
+      if (description !== modal.report.description) {
+        payload.description = description;
+      }
+      if (canChangeStatus && statusToSet && statusToSet !== modal.report.status) {
         payload.status = statusToSet;
       }
       if (note.trim()) payload.notes = note.trim();
       if (Object.keys(payload).length === 0) {
-        setError("Selecciona un nuevo estado o agrega una respuesta.");
+        notify("Modifica un dato, cambia el estado o agrega una respuesta.", "warning");
         return;
       }
       await api.patch(`/reports/${modal.report.id}`, payload);
-      setSuccess("Reporte actualizado.");
+      notify("Reporte actualizado correctamente.", "warning");
       closeModal();
       fetchList();
     } catch (err) {
-      setError(err.message);
+      notify(err.message, "error");
     } finally {
       setSaving(false);
     }
   };
 
-  const handleDelete = async (report) => {
-    if (!report) return;
-    if (!window.confirm("¿Eliminar este reporte?")) return;
-    setError("");
-    setSuccess("");
+  const confirmDelete = async () => {
+    if (!pendingDelete) return;
+    setDeleting(true);
     try {
-      await api.del(`/reports/${report.id}`);
-      if (modal.report?.id === report.id) closeModal();
-      setSuccess("Reporte eliminado.");
+      await api.del(`/reports/${pendingDelete.id}`);
+      if (modal.report?.id === pendingDelete.id) closeModal();
+      notify("Reporte eliminado.", "danger");
+      setPendingDelete(null);
       fetchList();
     } catch (err) {
-      setError(err.message);
+      notify(err.message, "error");
+    } finally {
+      setDeleting(false);
     }
   };
 
   const items = useMemo(() => data.items, [data.items]);
   const detail = modal.report?.report || modal.report;
   const history = modal.report?.history || [];
+  const columns = [
+    { key: "trackingNumber", label: "Número de bulto", className: "mono" },
+    {
+      key: "status",
+      label: "Estado",
+      render: (item) => <StatusBadge status={item.status} />,
+    },
+    ...(user.role === "super_admin"
+      ? [{ key: "agencyName", label: "Agencia" }]
+      : []),
+    { key: "createdByName", label: "Creado por" },
+    {
+      key: "createdAt",
+      label: "Fecha creación",
+      render: (item) => formatDateTime(item.createdAt),
+    },
+    {
+      key: "lastNote",
+      label: "Última respuesta",
+      render: (item) => item.lastNote || "—",
+    },
+    {
+      key: "actions",
+      label: "Acciones",
+      headerClassName: "actions-head",
+      cellClassName: "actions-cell",
+      render: (item) => (
+        <div className="action-group">
+          {canView && (
+            <button
+              type="button"
+              className="icon-button"
+              title="Visualizar"
+              aria-label={`Visualizar reporte ${item.trackingNumber}`}
+              onClick={() => openView(item)}
+            >
+              <EyeIcon />
+            </button>
+          )}
+          {canModify && (
+            <button
+              type="button"
+              className="icon-button"
+              title="Modificar"
+              aria-label={`Modificar reporte ${item.trackingNumber}`}
+              onClick={() => openEdit(item)}
+            >
+              <EditIcon />
+            </button>
+          )}
+          {canDelete && (
+            <button
+              type="button"
+              className="icon-button icon-button-danger"
+              title="Eliminar"
+              aria-label={`Eliminar reporte ${item.trackingNumber}`}
+              onClick={() => setPendingDelete(item)}
+            >
+              <TrashIcon />
+            </button>
+          )}
+        </div>
+      ),
+    },
+  ];
 
   return (
     <div className="page">
@@ -221,159 +334,102 @@ export default function Reports() {
         </div>
       </header>
 
-      {error && !modal.open && <div className="alert alert-error">{error}</div>}
-      {success && !modal.open && <div className="alert alert-success">{success}</div>}
-
       <section className="card">
         <div className="card-header">
           <div className="table-title">
             <h2>Listado de reportes</h2>
+            <span className="list-count" aria-label={`${data.total} reportes`}>
+              {data.total}
+            </span>
           </div>
           {canCreate && (
-            <button type="button" className="btn btn-primary" onClick={openCreate}>
+            <button
+              type="button"
+              className="icon-button report-create-button"
+              onClick={openCreate}
+              title="Crear reporte"
+              aria-label="Crear reporte"
+            >
               <PlusIcon />
-              Crear reporte
             </button>
           )}
         </div>
 
         <div className="filters-inline">
-          <form onSubmit={handleSearch}>
-            <input
-              type="search"
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              placeholder="Buscar por número de bulto"
-            />
-          </form>
-          <select
-            value={filters.status}
-            onChange={(event) => updateFilter("status", event.target.value)}
-          >
-            <option value="">Todos los estados</option>
-            {STATUSES.map((status) => (
-              <option key={status} value={status}>
-                {STATUS_LABELS[status]}
-              </option>
-            ))}
-          </select>
-          {user.role === "super_admin" && (
-            <select
-              value={filters.agencyId}
-              onChange={(event) => updateFilter("agencyId", event.target.value)}
-            >
-              <option value="">Todas las agencias</option>
-              {agencies.map((agency) => (
-                <option key={agency.id} value={agency.id}>
-                  {agency.name}
-                </option>
-              ))}
-            </select>
-          )}
+              <form onSubmit={handleSearch}>
+                <input
+                  type="search"
+                  value={search}
+                  onChange={(event) => setSearch(event.target.value)}
+                  placeholder="Buscar por número de bulto"
+                />
+              </form>
+              <select
+                value={filters.status}
+                onChange={(event) => updateFilter("status", event.target.value)}
+              >
+                <option value="">Todos los estados</option>
+                {STATUSES.map((status) => (
+                  <option key={status} value={status}>
+                    {STATUS_LABELS[status]}
+                  </option>
+                ))}
+              </select>
+              {user.role === "super_admin" && (
+                <select
+                  value={filters.agencyId}
+                  onChange={(event) => updateFilter("agencyId", event.target.value)}
+                >
+                  <option value="">Todas las agencias</option>
+                  {agencies.map((agency) => (
+                    <option key={agency.id} value={agency.id}>
+                      {agency.name}
+                    </option>
+                  ))}
+                </select>
+              )}
         </div>
 
-        {loading ? (
-          <p className="empty">Cargando reportes…</p>
-        ) : items.length === 0 ? (
-          <p className="empty">No hay reportes registrados.</p>
-        ) : (
-          <div className="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>Número de bulto</th>
-                  <th>Estado</th>
-                  {user.role === "super_admin" && <th>Agencia</th>}
-                  <th>Creado por</th>
-                  <th>Fecha creación</th>
-                  <th>Última respuesta</th>
-                  <th className="actions-head">Acciones</th>
-                </tr>
-              </thead>
-              <tbody>
-                {items.map((item) => (
-                  <tr key={item.id}>
-                    <td className="mono">{item.bultoNumber}</td>
-                    <td>
-                      <StatusBadge status={item.status} />
-                    </td>
-                    {user.role === "super_admin" && <td>{item.agencyName}</td>}
-                    <td>{item.createdByName}</td>
-                    <td>{formatDateTime(item.createdAt)}</td>
-                    <td>{item.lastNote || "—"}</td>
-                    <td className="actions-cell">
-                      <div className="action-group">
-                        {canView && (
-                          <button
-                            type="button"
-                            className="icon-button"
-                            title="Visualizar"
-                            onClick={() => openView(item)}
-                          >
-                            <EyeIcon />
-                          </button>
-                        )}
-                        {canModify && (
-                          <button
-                            type="button"
-                            className="icon-button"
-                            title="Modificar"
-                            onClick={() => openEdit(item)}
-                          >
-                            <EditIcon />
-                          </button>
-                        )}
-                        {canDelete && (
-                          <button
-                            type="button"
-                            className="icon-button icon-button-danger"
-                            title="Eliminar"
-                            onClick={() => handleDelete(item)}
-                          >
-                            <TrashIcon />
-                          </button>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+        <DataTable
+          columns={columns}
+          rows={items}
+          loading={loading}
+          loadingMessage="Cargando reportes..."
+          emptyMessage="No hay reportes registrados."
+        />
 
         {data.pages > 1 && (
           <div className="pagination">
-            <button
-              type="button"
-              className="btn btn-small"
-              disabled={data.page <= 1}
-              onClick={() =>
-                setFilters((current) => ({ ...current, page: current.page - 1 }))
-              }
-            >
-              Anterior
-            </button>
-            <span>
-              Página {data.page} de {data.pages}
-            </span>
-            <button
-              type="button"
-              className="btn btn-small"
-              disabled={data.page >= data.pages}
-              onClick={() =>
-                setFilters((current) => ({ ...current, page: current.page + 1 }))
-              }
-            >
-              Siguiente
-            </button>
+                <button
+                  type="button"
+                  className="btn btn-small"
+                  disabled={data.page <= 1}
+                  onClick={() =>
+                    setFilters((current) => ({ ...current, page: current.page - 1 }))
+                  }
+                >
+                  Anterior
+                </button>
+                <span>
+                  Página {data.page} de {data.pages}
+                </span>
+                <button
+                  type="button"
+                  className="btn btn-small"
+                  disabled={data.page >= data.pages}
+                  onClick={() =>
+                    setFilters((current) => ({ ...current, page: current.page + 1 }))
+                  }
+                >
+                  Siguiente
+                </button>
           </div>
         )}
       </section>
 
       {modal.open && (
-        <div className="modal-backdrop" onClick={closeModal}>
-          <div className="modal" onClick={(event) => event.stopPropagation()}>
+        <div className="modal-backdrop">
+          <div className="modal">
             <header className="modal-header">
               <div>
                 <h2>
@@ -385,37 +441,99 @@ export default function Reports() {
                 </h2>
                 {detail && (
                   <p className="muted">
-                    {detail.bultoNumber}
+                    {detail.trackingNumber}
                     {user.role === "super_admin" && detail.agencyName
                       ? ` · ${detail.agencyName}`
                       : ""}
                   </p>
                 )}
               </div>
-              <button type="button" className="icon-button" onClick={closeModal}>
+              <button
+                type="button"
+                className="icon-button"
+                title="Cerrar"
+                aria-label="Cerrar formulario"
+                onClick={closeModal}
+              >
                 ×
               </button>
             </header>
 
-            {error && <div className="alert alert-error">{error}</div>}
-            {success && <div className="alert alert-success">{success}</div>}
-
             {modal.mode === "create" && (
               <form className="form" onSubmit={handleCreate}>
                 <label className="field">
-                  <span>Número de bulto *</span>
+                  <span>Número del bulto (HBL) *</span>
                   <input
                     value={formBulto}
                     onChange={(event) => setFormBulto(event.target.value)}
-                    placeholder="Ej. B-123456"
+                    placeholder="Ej. HBL-123456"
                     required
                   />
                 </label>
+                <label className="field">
+                  <span>Descripción del reporte *</span>
+                  <textarea
+                    value={formDescription}
+                    onChange={(event) => setFormDescription(event.target.value)}
+                    rows={3}
+                    maxLength={2000}
+                    placeholder="Describe el problema del bulto"
+                    required
+                  />
+                </label>
+                {user.role === "super_admin" && (
+                  <label className="field">
+                    <span>Agencia *</span>
+                    <select
+                      value={createAgencyId}
+                      onChange={(event) => setCreateAgencyId(event.target.value)}
+                      required
+                    >
+                      <option value="">Seleccionar agencia</option>
+                      {agencies.map((agency) => (
+                        <option key={agency.id} value={agency.id}>
+                          {agency.name}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                )}
+                <label className="photo-option">
+                  <input
+                    type="checkbox"
+                    checked={attachPhoto}
+                    onChange={(event) => {
+                      setAttachPhoto(event.target.checked);
+                      setPhotoFile(null);
+                    }}
+                  />
+                  <span>Adjuntar una foto</span>
+                </label>
+                {attachPhoto && (
+                  <label className="field">
+                    <span>Foto (JPEG, PNG o WebP) *</span>
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp"
+                      required
+                      onChange={(event) => setPhotoFile(event.target.files?.[0] || null)}
+                    />
+                    {photoFile && <small className="muted">{photoFile.name}</small>}
+                  </label>
+                )}
                 <div className="form-actions">
-                  <button type="submit" className="btn btn-primary" disabled={saving}>
+                  <button
+                    type="submit"
+                    className="btn report-modal-action"
+                    disabled={saving}
+                  >
                     {saving ? "Creando…" : "Crear reporte"}
                   </button>
-                  <button type="button" className="btn btn-ghost" onClick={closeModal}>
+                  <button
+                    type="button"
+                    className="btn report-modal-action"
+                    onClick={closeModal}
+                  >
                     Cancelar
                   </button>
                 </div>
@@ -427,7 +545,7 @@ export default function Reports() {
                 <dl className="detail-list">
                   <div>
                     <dt>Número de bulto</dt>
-                    <dd className="mono">{detail.bultoNumber}</dd>
+                    <dd className="mono">{detail.trackingNumber}</dd>
                   </div>
                   <div>
                     <dt>Estado</dt>
@@ -454,6 +572,10 @@ export default function Reports() {
                     <dd>{formatDateTime(detail.updatedAt)}</dd>
                   </div>
                 </dl>
+                <div>
+                  <h3>Descripción</h3>
+                  <p className="pre-line">{detail.description || "Sin descripción"}</p>
+                </div>
 
                 <div>
                   <h3>Historial</h3>
@@ -480,7 +602,7 @@ export default function Reports() {
                 <dl className="detail-list">
                   <div>
                     <dt>Número de bulto</dt>
-                    <dd className="mono">{detail.bultoNumber}</dd>
+                    <dd className="mono">{detail.trackingNumber}</dd>
                   </div>
                   <div>
                     <dt>Estado actual</dt>
@@ -497,18 +619,41 @@ export default function Reports() {
                 </dl>
 
                 <label className="field">
-                  <span>Cambiar estado</span>
-                  <select
-                    value={statusToSet}
-                    onChange={(event) => setStatusToSet(event.target.value)}
-                  >
-                    {STATUSES.map((status) => (
-                      <option key={status} value={status}>
-                        {STATUS_LABELS[status]}
-                      </option>
-                    ))}
-                  </select>
+                  <span>Número del bulto (HBL) *</span>
+                  <input
+                    value={editTrackingNumber}
+                    onChange={(event) => setEditTrackingNumber(event.target.value)}
+                    maxLength={60}
+                    required
+                  />
                 </label>
+
+                <label className="field">
+                  <span>Descripción del reporte *</span>
+                  <textarea
+                    value={editDescription}
+                    onChange={(event) => setEditDescription(event.target.value)}
+                    rows={3}
+                    maxLength={2000}
+                    required
+                  />
+                </label>
+
+                {canChangeStatus && (
+                  <label className="field">
+                    <span>Cambiar estado</span>
+                    <select
+                      value={statusToSet}
+                      onChange={(event) => setStatusToSet(event.target.value)}
+                    >
+                      {STATUSES.map((status) => (
+                        <option key={status} value={status}>
+                          {STATUS_LABELS[status]}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                )}
 
                 <label className="field">
                   <span>Respuesta / nota</span>
@@ -551,6 +696,16 @@ export default function Reports() {
           </div>
         </div>
       )}
+
+      <ConfirmDialog
+        open={Boolean(pendingDelete)}
+        title="Eliminar reporte"
+        message={`¿Eliminar el reporte ${pendingDelete?.trackingNumber || "seleccionado"}? Esta acción no se puede deshacer.`}
+        confirmLabel="Eliminar"
+        busy={deleting}
+        onConfirm={confirmDelete}
+        onCancel={() => setPendingDelete(null)}
+      />
     </div>
   );
 }

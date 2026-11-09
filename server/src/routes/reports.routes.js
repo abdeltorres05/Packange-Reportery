@@ -4,6 +4,7 @@ const { Router } = require("express");
 
 const config = require("../config");
 const reports = require("../repositories/reports");
+const agencies = require("../repositories/agencies");
 const photos = require("../repositories/photos");
 const {
   reportCreateSchema,
@@ -18,7 +19,7 @@ const {
   resolveAgencyScope,
 } = require("../auth/middleware");
 const { parseId } = require("../lib/params");
-const { conflict, notFound } = require("../lib/errors");
+const { conflict, forbidden, notFound } = require("../lib/errors");
 
 const router = Router();
 
@@ -48,10 +49,13 @@ router.get("/", (req, res) => {
 
 router.post("/", requireRole("agency_admin", "agency_user", "super_admin"), (req, res) => {
   const data = validate(reportCreateSchema, req.body);
-  const agencyId = req.user.agencyId;
+  const agencyId = req.user.role === "super_admin" ? data.agencyId : req.user.agencyId;
 
-  if (!agencyId && req.user.role !== "super_admin") {
+  if (!agencyId) {
     throw notFound("Agencia no disponible");
+  }
+  if (req.user.role === "super_admin" && !agencies.findById(agencyId)) {
+    throw notFound("Agencia no encontrada");
   }
 
   if (reports.findByTrackingNumber(agencyId, data.trackingNumber)) {
@@ -66,7 +70,7 @@ router.post("/", requireRole("agency_admin", "agency_user", "super_admin"), (req
     recipientName: data.recipientName,
     recipientPhone: data.recipientPhone,
     reportDate: data.reportDate,
-    status: data.status,
+    status: req.user.role === "agency_user" ? "pendiente" : data.status,
     description: data.description,
     observations: data.observations,
     createdBy: req.user.id,
@@ -102,6 +106,12 @@ router.patch("/:id", requireRole("agency_admin", "agency_user", "super_admin"), 
   if (!report) throw notFound("Reporte no encontrado");
 
   const data = validate(reportUpdateSchema, req.body);
+  if (
+    data.status !== undefined &&
+    !["agency_admin", "super_admin"].includes(req.user.role)
+  ) {
+    throw forbidden("Solo los administradores pueden cambiar el estado");
+  }
   const { statusNotes, notes, ...fields } = data;
 
   if (fields.trackingNumber && fields.trackingNumber !== report.trackingNumber) {
@@ -138,7 +148,7 @@ router.get("/:id/history", (req, res) => {
   res.json({ items: reports.listHistory(id) });
 });
 
-router.delete("/:id", requireRole("agency_admin", "super_admin"), (req, res) => {
+router.delete("/:id", requireRole("super_admin"), (req, res) => {
   const id = parseId(req.params.id, "Reporte inválido");
   const agencyId = resolveAgencyScope(req, undefined);
   const report = reports.findScoped(id, agencyId);

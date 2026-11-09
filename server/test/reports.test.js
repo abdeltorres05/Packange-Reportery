@@ -47,6 +47,34 @@ test("crea un reporte y registra el historial inicial", async () => {
   assert.equal(detail.body.history[0].status, "pendiente");
 });
 
+test("crea un reporte mínimo con HBL y descripción", async () => {
+  const res = await request(app)
+    .post("/api/reports")
+    .set(auth(data.tokens.adminA))
+    .send({ trackingNumber: "HBL-100", description: "Bulto dañado" });
+
+  assert.equal(res.status, 201);
+  assert.equal(res.body.report.trackingNumber, "HBL-100");
+  assert.equal(res.body.report.description, "Bulto dañado");
+  assert.equal(res.body.report.senderName, "No especificado");
+  assert.equal(res.body.report.recipientName, "No especificado");
+  assert.match(res.body.report.reportDate, /^\d{4}-\d{2}-\d{2}$/);
+});
+
+test("el superadministrador debe indicar una agencia al crear un reporte", async () => {
+  const res = await request(app)
+    .post("/api/reports")
+    .set(auth(data.tokens.superAdmin))
+    .send({
+      trackingNumber: "HBL-SUPER-1",
+      description: "Bulto retenido",
+      agencyId: data.agencyB.id,
+    });
+
+  assert.equal(res.status, 201);
+  assert.equal(res.body.report.agencyId, data.agencyB.id);
+});
+
 test("no permite guías duplicadas dentro de la misma agencia", async () => {
   const res = await request(app)
     .post("/api/reports")
@@ -130,7 +158,7 @@ test("las estadísticas respetan el alcance de la agencia", async () => {
 test("cambiar el estado agrega una entrada al historial", async () => {
   const res = await request(app)
     .patch(`/api/reports/${data.reportA.id}`)
-    .set(auth(data.tokens.adminA))
+    .set(auth(data.tokens.superAdmin))
     .send({ status: "en_transito", statusNotes: "Salida a ruta" });
 
   assert.equal(res.status, 200);
@@ -145,6 +173,36 @@ test("cambiar el estado agrega una entrada al historial", async () => {
   assert.equal(history.body.items[1].notes, "Salida a ruta");
 });
 
+test("un administrador puede cambiar el estado y se registra en el historial", async () => {
+  const res = await request(app)
+    .patch(`/api/reports/${data.reportA.id}`)
+    .set(auth(data.tokens.adminA))
+    .send({ status: "en_transito", statusNotes: "Salida a ruta" });
+
+  assert.equal(res.status, 200);
+  assert.equal(res.body.report.status, "en_transito");
+});
+
+test("un usuario normal no puede cambiar el estado", async () => {
+  const res = await request(app)
+    .patch(`/api/reports/${data.reportA.id}`)
+    .set(auth(data.tokens.agentA))
+    .send({ status: "en_transito" });
+
+  assert.equal(res.status, 403);
+  assert.equal(res.body.error.code, "FORBIDDEN");
+});
+
+test("rechaza una descripción vacía al editar", async () => {
+  const res = await request(app)
+    .patch(`/api/reports/${data.reportA.id}`)
+    .set(auth(data.tokens.adminA))
+    .send({ description: "   " });
+
+  assert.equal(res.status, 400);
+  assert.equal(res.body.error.code, "VALIDATION_ERROR");
+});
+
 test("no permite duplicar la guía al editar", async () => {
   await request(app)
     .post("/api/reports")
@@ -157,6 +215,20 @@ test("no permite duplicar la guía al editar", async () => {
     .send({ trackingNumber: "MARY-400" });
 
   assert.equal(res.status, 409);
+});
+
+test("permite editar el HBL y la descripción del reporte", async () => {
+  const res = await request(app)
+    .patch(`/api/reports/${data.reportA.id}`)
+    .set(auth(data.tokens.adminA))
+    .send({
+      trackingNumber: "MARY-HBL-UPDATED",
+      description: "Descripción actualizada",
+    });
+
+  assert.equal(res.status, 200);
+  assert.equal(res.body.report.trackingNumber, "MARY-HBL-UPDATED");
+  assert.equal(res.body.report.description, "Descripción actualizada");
 });
 
 test("pagina los resultados", async () => {
@@ -178,20 +250,25 @@ test("un id inválido devuelve 400", async () => {
   assert.equal(res.status, 400);
 });
 
-test("solo un administrador de agencia puede eliminar un reporte", async () => {
+test("solo el superadministrador puede eliminar un reporte", async () => {
   const forbidden = await request(app)
     .delete(`/api/reports/${data.reportA.id}`)
     .set(auth(data.tokens.agentA));
   assert.equal(forbidden.status, 403);
 
-  const deleted = await request(app)
+  const adminForbidden = await request(app)
     .delete(`/api/reports/${data.reportA.id}`)
     .set(auth(data.tokens.adminA));
+  assert.equal(adminForbidden.status, 403);
+
+  const deleted = await request(app)
+    .delete(`/api/reports/${data.reportA.id}`)
+    .set(auth(data.tokens.superAdmin));
   assert.equal(deleted.status, 204);
 
   const detail = await request(app)
     .get(`/api/reports/${data.reportA.id}`)
-    .set(auth(data.tokens.adminA));
+    .set(auth(data.tokens.superAdmin));
   assert.equal(detail.status, 404);
 });
 
@@ -199,8 +276,9 @@ test("un empleado de agencia puede crear reportes en su agencia", async () => {
   const res = await request(app)
     .post("/api/reports")
     .set(auth(data.tokens.agentA))
-    .send(reportBody({ trackingNumber: "MARY-500" }));
+    .send(reportBody({ trackingNumber: "MARY-500", status: "entregado" }));
 
   assert.equal(res.status, 201);
   assert.equal(res.body.report.agencyId, data.agencyA.id);
+  assert.equal(res.body.report.status, "pendiente");
 });

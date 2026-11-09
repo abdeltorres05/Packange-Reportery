@@ -5,6 +5,7 @@ import { api } from "../api";
 import { useAuth } from "../auth/AuthContext";
 import StatusBadge from "../components/StatusBadge";
 import { STATUSES, STATUS_LABELS, formatDate } from "../constants";
+import { notify } from "../notifications";
 
 export default function ReportsList() {
   const { user } = useAuth();
@@ -25,7 +26,6 @@ export default function ReportsList() {
   const [data, setData] = useState({ items: [], total: 0, page: 1, pages: 0 });
   const [agencies, setAgencies] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
 
   useEffect(() => {
     if (user.role !== "super_admin") return;
@@ -53,10 +53,9 @@ export default function ReportsList() {
       .then((result) => {
         if (!active) return;
         setData(result);
-        setError("");
       })
       .catch((err) => {
-        if (active) setError(err.message);
+        if (active) notify(err.message, "error");
       })
       .finally(() => {
         if (active) setLoading(false);
@@ -176,8 +175,6 @@ export default function ReportsList() {
           </div>
         </form>
       </section>
-
-      {error && <div className="alert alert-error">{error}</div>}
 
       <section className="card">
         <div className="card-header">

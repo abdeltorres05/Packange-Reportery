@@ -68,12 +68,13 @@ const trackingNumber = z
   .max(60);
 
 const reportCreateSchema = z.object({
+  agencyId: z.coerce.number().int().positive().optional(),
   trackingNumber,
-  senderName: z.string().trim().min(1, "El remitente es obligatorio").max(120),
+  senderName: z.string().trim().min(1).max(120).optional().default("No especificado"),
   senderPhone: z.string().trim().max(40).optional().nullable().transform((value) => value === "" ? null : value),
-  recipientName: z.string().trim().min(1, "El destinatario es obligatorio").max(120),
+  recipientName: z.string().trim().min(1).max(120).optional().default("No especificado"),
   recipientPhone: z.string().trim().max(40).optional().nullable().transform((value) => value === "" ? null : value),
-  reportDate: dateString,
+  reportDate: dateString.optional().default(() => new Date().toISOString().slice(0, 10)),
   status: z.enum(STATUSES).default("pendiente"),
   description: z.string().trim().min(1, "La descripción es obligatoria").max(2000),
   observations: optionalText(2000),
@@ -87,7 +88,7 @@ const reportUpdateSchema = z.object({
   recipientPhone: z.string().trim().max(40).optional().nullable().transform((value) => value === "" ? null : value),
   reportDate: dateString.optional(),
   status: z.enum(STATUSES).optional(),
-  description: z.string().trim().min(1).max(2000).optional(),
+  description: z.string().trim().min(1, "La descripción es obligatoria").max(2000).optional(),
   observations: optionalText(2000),
   statusNotes: optionalText(500),
   notes: optionalText(500),

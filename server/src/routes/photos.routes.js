@@ -26,11 +26,11 @@ router.use(requireAuth);
 
 router.post(
   "/:id/photos",
-  requireRole("agency_admin", "agency_user"),
+  requireRole("agency_admin", "agency_user", "super_admin"),
   upload.array("photos", config.maxPhotosPerReport),
   (req, res) => {
     const id = parseId(req.params.id, "Reporte inválido");
-    const report = reports.findScoped(id, req.user.agencyId);
+    const report = reports.findScoped(id, resolveAgencyScope(req, undefined));
     if (!report) throw notFound("Reporte no encontrado");
 
     const files = req.files ?? [];
@@ -105,12 +105,12 @@ router.get("/:id/photos/:photoId/file", (req, res) => {
 
 router.delete(
   "/:id/photos/:photoId",
-  requireRole("agency_admin", "agency_user"),
+  requireRole("agency_admin", "agency_user", "super_admin"),
   (req, res) => {
     const id = parseId(req.params.id, "Reporte inválido");
     const photoId = parseId(req.params.photoId, "Foto inválida");
 
-    const report = reports.findScoped(id, req.user.agencyId);
+    const report = reports.findScoped(id, resolveAgencyScope(req, undefined));
     if (!report) throw notFound("Reporte no encontrado");
 
     const photo = photos.findRawById(photoId);

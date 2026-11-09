@@ -4,8 +4,10 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { api } from "../api";
 import { useAuth } from "../auth/AuthContext";
 import AuthImage from "../components/AuthImage";
+import ConfirmDialog from "../components/ConfirmDialog";
 import StatusBadge from "../components/StatusBadge";
 import { STATUS_LABELS, formatDate, formatDateTime } from "../constants";
+import { notify } from "../notifications";
 
 export default function ReportDetail() {
   const { id } = useParams();
@@ -17,11 +19,11 @@ export default function ReportDetail() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [uploading, setUploading] = useState(false);
-  const [actionError, setActionError] = useState("");
+  const [pendingConfirmation, setPendingConfirmation] = useState(null);
+  const [deleting, setDeleting] = useState(false);
 
-  const canWrite =
-    user.role === "agency_admin" || user.role === "agency_user";
-  const canDelete = user.role === "agency_admin";
+  const canWrite = ["agency_admin", "agency_user", "super_admin"].includes(user.role);
+  const canDelete = user.role === "super_admin";
 
   const load = useCallback(() => {
     let active = true;
@@ -34,7 +36,10 @@ export default function ReportDetail() {
         setError("");
       })
       .catch((err) => {
-        if (active) setError(err.message);
+        if (active) {
+          setError(err.message);
+          notify(err.message, "error");
+        }
       })
       .finally(() => {
         if (active) setLoading(false);
@@ -51,45 +56,52 @@ export default function ReportDetail() {
     event.preventDefault();
     const files = fileInput.current?.files;
     if (!files || files.length === 0) {
-      setActionError("Selecciona al menos una imagen.");
+      notify("Selecciona al menos una imagen.", "warning");
       return;
     }
 
     setUploading(true);
-    setActionError("");
     const payload = new FormData();
     Array.from(files).forEach((file) => payload.append("photos", file));
 
     try {
       await api.post(`/reports/${id}/photos`, payload);
       if (fileInput.current) fileInput.current.value = "";
+      notify("Fotos subidas correctamente.", "success");
       load();
     } catch (err) {
-      setActionError(err.message);
+      notify(err.message, "error");
     } finally {
       setUploading(false);
     }
   };
 
-  const handleDeletePhoto = async (photoId) => {
-    if (!window.confirm("¿Eliminar esta foto?")) return;
-    setActionError("");
-    try {
-      await api.del(`/reports/${id}/photos/${photoId}`);
-      load();
-    } catch (err) {
-      setActionError(err.message);
-    }
+  const requestDeletePhoto = (photoId) => {
+    setPendingConfirmation({ type: "photo", photoId });
   };
 
-  const handleDelete = async () => {
-    if (!window.confirm("¿Eliminar este reporte y todas sus fotos?")) return;
-    setActionError("");
+  const requestDeleteReport = () => {
+    setPendingConfirmation({ type: "report" });
+  };
+
+  const confirmDelete = async () => {
+    if (!pendingConfirmation) return;
+    setDeleting(true);
     try {
-      await api.del(`/reports/${id}`);
-      navigate("/reportes", { replace: true });
+      if (pendingConfirmation.type === "photo") {
+        await api.del(`/reports/${id}/photos/${pendingConfirmation.photoId}`);
+        notify("Foto eliminada.", "danger");
+        setPendingConfirmation(null);
+        load();
+      } else {
+        await api.del(`/reports/${id}`);
+        notify("Reporte eliminado.", "danger");
+        navigate("/reportes", { replace: true });
+      }
     } catch (err) {
-      setActionError(err.message);
+      notify(err.message, "error");
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -98,7 +110,6 @@ export default function ReportDetail() {
   if (error) {
     return (
       <div className="page">
-        <div className="alert alert-error">{error}</div>
         <Link to="/reportes" className="btn btn-ghost">
           Volver a reportes
         </Link>
@@ -130,14 +141,12 @@ export default function ReportDetail() {
             </Link>
           )}
           {canDelete && (
-            <button type="button" className="btn btn-danger" onClick={handleDelete}>
+            <button type="button" className="btn btn-danger" onClick={requestDeleteReport}>
               Eliminar
             </button>
           )}
         </div>
       </header>
-
-      {actionError && <div className="alert alert-error">{actionError}</div>}
 
       <section className="detail-grid">
         <article className="card">
@@ -210,7 +219,7 @@ export default function ReportDetail() {
                     <button
                       type="button"
                       className="btn btn-small btn-danger"
-                      onClick={() => handleDeletePhoto(photo.id)}
+                      onClick={() => requestDeletePhoto(photo.id)}
                     >
                       Quitar
                     </button>
@@ -253,6 +262,20 @@ export default function ReportDetail() {
           ))}
         </ol>
       </section>
+
+      <ConfirmDialog
+        open={Boolean(pendingConfirmation)}
+        title={pendingConfirmation?.type === "photo" ? "Eliminar foto" : "Eliminar reporte"}
+        message={
+          pendingConfirmation?.type === "photo"
+            ? "¿Eliminar esta foto? Esta acción no se puede deshacer."
+            : "¿Eliminar este reporte y todas sus fotos? Esta acción no se puede deshacer."
+        }
+        confirmLabel="Eliminar"
+        busy={deleting}
+        onConfirm={confirmDelete}
+        onCancel={() => setPendingConfirmation(null)}
+      />
     </div>
   );
 }
