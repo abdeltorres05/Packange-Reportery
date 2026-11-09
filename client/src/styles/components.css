@@ -212,6 +212,18 @@ td {
 }.icon-button-danger {
   color: var(--danger);
   border-color: rgba(220, 38, 38, 0.4);
+}.icon-button-create {
+  width: 2.5rem;
+  height: 2.5rem;
+  border-color: var(--primary);
+  background: var(--primary);
+  color: #fff;
+}.icon-button-create:hover {
+  border-color: var(--primary-hover);
+  background: var(--primary-hover);
+}.icon-button-create:focus-visible {
+  outline: 3px solid rgba(31, 78, 121, 0.25);
+  outline-offset: 2px;
 }.table-title {
   display: flex;
   align-items: center;
