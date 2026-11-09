@@ -93,6 +93,17 @@ test("elimina una foto", async () => {
   assert.equal(file.status, 404);
 });
 
+test("el superadministrador puede eliminar fotos en cualquier agencia", async () => {
+  const res = await upload(data.reportA.id, data.tokens.adminA);
+  const photo = res.body.photos[0];
+
+  const deleted = await request(app)
+    .delete(`/api/reports/${data.reportA.id}/photos/${photo.id}`)
+    .set(auth(data.tokens.superAdmin));
+
+  assert.equal(deleted.status, 204);
+});
+
 test("limita la cantidad de fotos por reporte", async () => {
   let req = request(app)
     .post(`/api/reports/${data.reportA.id}/photos`)

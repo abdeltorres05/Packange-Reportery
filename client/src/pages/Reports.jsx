@@ -71,8 +71,8 @@ export default function Reports() {
   const [deleting, setDeleting] = useState(false);
 
   const canView = Boolean(user);
-  const canModify = user.role === "agency_admin" || user.role === "super_admin";
-  const canChangeStatus = user.role === "super_admin";
+  const canModify = ["agency_admin", "agency_user", "super_admin"].includes(user.role);
+  const canChangeStatus = user.role === "agency_admin" || user.role === "super_admin";
   const canDelete = user.role === "super_admin";
   const canCreate = user.role === "agency_admin" || user.role === "agency_user" || user.role === "super_admin";
 

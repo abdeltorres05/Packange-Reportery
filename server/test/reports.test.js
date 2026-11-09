@@ -173,10 +173,20 @@ test("cambiar el estado agrega una entrada al historial", async () => {
   assert.equal(history.body.items[1].notes, "Salida a ruta");
 });
 
-test("solo el superadministrador puede cambiar el estado", async () => {
+test("un administrador puede cambiar el estado y se registra en el historial", async () => {
   const res = await request(app)
     .patch(`/api/reports/${data.reportA.id}`)
     .set(auth(data.tokens.adminA))
+    .send({ status: "en_transito", statusNotes: "Salida a ruta" });
+
+  assert.equal(res.status, 200);
+  assert.equal(res.body.report.status, "en_transito");
+});
+
+test("un usuario normal no puede cambiar el estado", async () => {
+  const res = await request(app)
+    .patch(`/api/reports/${data.reportA.id}`)
+    .set(auth(data.tokens.agentA))
     .send({ status: "en_transito" });
 
   assert.equal(res.status, 403);
@@ -240,20 +250,25 @@ test("un id inválido devuelve 400", async () => {
   assert.equal(res.status, 400);
 });
 
-test("solo un administrador de agencia puede eliminar un reporte", async () => {
+test("solo el superadministrador puede eliminar un reporte", async () => {
   const forbidden = await request(app)
     .delete(`/api/reports/${data.reportA.id}`)
     .set(auth(data.tokens.agentA));
   assert.equal(forbidden.status, 403);
 
-  const deleted = await request(app)
+  const adminForbidden = await request(app)
     .delete(`/api/reports/${data.reportA.id}`)
     .set(auth(data.tokens.adminA));
+  assert.equal(adminForbidden.status, 403);
+
+  const deleted = await request(app)
+    .delete(`/api/reports/${data.reportA.id}`)
+    .set(auth(data.tokens.superAdmin));
   assert.equal(deleted.status, 204);
 
   const detail = await request(app)
     .get(`/api/reports/${data.reportA.id}`)
-    .set(auth(data.tokens.adminA));
+    .set(auth(data.tokens.superAdmin));
   assert.equal(detail.status, 404);
 });
 
@@ -261,8 +276,9 @@ test("un empleado de agencia puede crear reportes en su agencia", async () => {
   const res = await request(app)
     .post("/api/reports")
     .set(auth(data.tokens.agentA))
-    .send(reportBody({ trackingNumber: "MARY-500" }));
+    .send(reportBody({ trackingNumber: "MARY-500", status: "entregado" }));
 
   assert.equal(res.status, 201);
   assert.equal(res.body.report.agencyId, data.agencyA.id);
+  assert.equal(res.body.report.status, "pendiente");
 });

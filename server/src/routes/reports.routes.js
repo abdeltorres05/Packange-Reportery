@@ -70,7 +70,7 @@ router.post("/", requireRole("agency_admin", "agency_user", "super_admin"), (req
     recipientName: data.recipientName,
     recipientPhone: data.recipientPhone,
     reportDate: data.reportDate,
-    status: data.status,
+    status: req.user.role === "agency_user" ? "pendiente" : data.status,
     description: data.description,
     observations: data.observations,
     createdBy: req.user.id,
@@ -106,8 +106,11 @@ router.patch("/:id", requireRole("agency_admin", "agency_user", "super_admin"), 
   if (!report) throw notFound("Reporte no encontrado");
 
   const data = validate(reportUpdateSchema, req.body);
-  if (data.status !== undefined && req.user.role !== "super_admin") {
-    throw forbidden("Solo el administrador del sistema puede cambiar el estado");
+  if (
+    data.status !== undefined &&
+    !["agency_admin", "super_admin"].includes(req.user.role)
+  ) {
+    throw forbidden("Solo los administradores pueden cambiar el estado");
   }
   const { statusNotes, notes, ...fields } = data;
 
@@ -145,7 +148,7 @@ router.get("/:id/history", (req, res) => {
   res.json({ items: reports.listHistory(id) });
 });
 
-router.delete("/:id", requireRole("agency_admin", "super_admin"), (req, res) => {
+router.delete("/:id", requireRole("super_admin"), (req, res) => {
   const id = parseId(req.params.id, "Reporte inválido");
   const agencyId = resolveAgencyScope(req, undefined);
   const report = reports.findScoped(id, agencyId);

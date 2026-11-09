@@ -58,7 +58,7 @@ test("una agencia no puede eliminar un reporte de otra agencia", async () => {
     .delete(`/api/reports/${data.reportB.id}`)
     .set(auth(data.tokens.adminA));
 
-  assert.equal(res.status, 404);
+  assert.equal(res.status, 403);
 });
 
 test("al crear un reporte se ignora el agencyId enviado en el body", async () => {

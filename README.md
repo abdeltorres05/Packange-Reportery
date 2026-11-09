@@ -56,9 +56,9 @@ En desarrollo, puedes optar por crear agencias y reportes de ejemplo configurand
 
 ## Roles
 
-- **Superadministrador:** administra agencias y usuarios y puede consultar reportes de todas las agencias.
-- **Administrador de agencia:** administra usuarios y reportes dentro de su propia agencia; no puede crear superadministradores ni acceder a otras agencias.
-- **Empleado de agencia:** trabaja con reportes de su agencia, sin acceso a la administración de agencias o usuarios.
+- **Superadministrador:** tiene todos los privilegios; administra agencias y usuarios, consulta y modifica reportes de todas las agencias, cambia estados y puede eliminar reportes.
+- **Administrador del sistema:** administra usuarios y reportes dentro de su propia agencia; puede crear y editar reportes, incluido su estado, pero no puede eliminarlos, crear superadministradores ni acceder a otras agencias.
+- **Usuario normal:** puede crear y editar los datos de reportes de su agencia, pero no cambiar su estado; no puede administrar usuarios o agencias ni eliminar reportes.
 
 ## Comandos
 

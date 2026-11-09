@@ -22,9 +22,8 @@ export default function ReportDetail() {
   const [pendingConfirmation, setPendingConfirmation] = useState(null);
   const [deleting, setDeleting] = useState(false);
 
-  const canWrite =
-    user.role === "agency_admin" || user.role === "agency_user";
-  const canDelete = user.role === "agency_admin";
+  const canWrite = ["agency_admin", "agency_user", "super_admin"].includes(user.role);
+  const canDelete = user.role === "super_admin";
 
   const load = useCallback(() => {
     let active = true;

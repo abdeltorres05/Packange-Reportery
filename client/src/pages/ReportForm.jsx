@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 
 import { api } from "../api";
+import { useAuth } from "../auth/AuthContext";
 import { STATUSES, STATUS_LABELS, todayISO } from "../constants";
 import { notify } from "../notifications";
 
@@ -23,7 +24,10 @@ function emptyForm() {
 export default function ReportForm() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const isEdit = Boolean(id);
+  const canChangeStatus =
+    user.role === "agency_admin" || user.role === "super_admin";
 
   const [form, setForm] = useState(emptyForm);
   const [originalStatus, setOriginalStatus] = useState("pendiente");
@@ -80,7 +84,7 @@ export default function ReportForm() {
       recipientName: form.recipientName,
       recipientPhone: form.recipientPhone.trim() || null,
       reportDate: form.reportDate,
-      status: form.status,
+      ...(canChangeStatus ? { status: form.status } : {}),
       description: form.description,
       observations: form.observations.trim() || null,
     };
@@ -132,7 +136,9 @@ export default function ReportForm() {
           <h1>{isEdit ? "Editar reporte" : "Nuevo reporte de bulto"}</h1>
           <p className="muted">
             {isEdit
-              ? "Actualiza los datos del bulto y su estado."
+              ? canChangeStatus
+                ? "Actualiza los datos del bulto y su estado."
+                : "Actualiza los datos del bulto. El estado solo puede cambiarlo un administrador."
               : "Registra la información y adjunta evidencias si lo necesitas."}
           </p>
         </div>
@@ -206,19 +212,21 @@ export default function ReportForm() {
             />
           </label>
 
-          <label className="field">
-            <span>Estado *</span>
-            <select
-              value={form.status}
-              onChange={(event) => update("status", event.target.value)}
-            >
-              {STATUSES.map((status) => (
-                <option key={status} value={status}>
-                  {STATUS_LABELS[status]}
-                </option>
-              ))}
-            </select>
-          </label>
+          {(canChangeStatus || (!isEdit && user.role !== "agency_user")) && (
+            <label className="field">
+              <span>Estado *</span>
+              <select
+                value={form.status}
+                onChange={(event) => update("status", event.target.value)}
+              >
+                {STATUSES.map((status) => (
+                  <option key={status} value={status}>
+                    {STATUS_LABELS[status]}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
 
           {statusChanged && (
             <label className="field">
