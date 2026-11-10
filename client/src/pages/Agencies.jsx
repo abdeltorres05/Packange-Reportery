@@ -103,17 +103,66 @@ export default function Agencies() {
         <div className="action-group">
           <button
             type="button"
-            className="btn btn-small"
+            className="icon-button"
             onClick={() => openEdit(agency)}
+            title="Editar agencia"
+            aria-label={`Editar agencia ${agency.name}`}
           >
-            Editar
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.8"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M12 20h9" />
+              <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+            </svg>
           </button>
           <button
             type="button"
-            className="btn btn-small"
+            className="icon-button"
             onClick={() => toggleActive(agency)}
+            title={agency.active ? "Desactivar agencia" : "Activar agencia"}
+            aria-label={agency.active
+              ? `Desactivar agencia ${agency.name}`
+              : `Activar agencia ${agency.name}`}
           >
-            {agency.active ? "Desactivar" : "Activar"}
+            {agency.active ? (
+              <svg
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M12 2v10" />
+                <path d="M5.5 5.5a9 9 0 1 0 13 0" />
+              </svg>
+            ) : (
+              <svg
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+              >
+                <circle cx="12" cy="12" r="9" />
+                <path d="m8 12 2.5 2.5L16 9" />
+              </svg>
+            )}
           </button>
         </div>
       ),
