@@ -141,7 +141,7 @@ export default function Agencies() {
           </div>
           <button
             type="button"
-            className="icon-button icon-button-create"
+            className="icon-button report-create-button"
             onClick={openCreate}
             title="Crear agencia"
             aria-label="Crear agencia"

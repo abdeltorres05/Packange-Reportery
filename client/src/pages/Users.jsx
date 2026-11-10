@@ -201,7 +201,7 @@ export default function Users() {
           </div>
           <button
             type="button"
-            className="icon-button icon-button-create"
+            className="icon-button report-create-button"
             onClick={openCreate}
             title="Crear usuario"
             aria-label="Crear usuario"

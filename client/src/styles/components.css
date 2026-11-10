@@ -212,19 +212,6 @@ td {
 }.icon-button-danger {
   color: var(--danger);
   border-color: rgba(220, 38, 38, 0.4);
-}.icon-button-create {
-  width: 2.5rem;
-  height: 2.5rem;
-  border-color: #111;
-  background: #fff;
-  color: #111;
-}.icon-button-create:hover {
-  border-color: #111;
-  background: #f3f4f6;
-  color: #111;
-}.icon-button-create:focus-visible {
-  outline: 3px solid rgba(17, 17, 17, 0.2);
-  outline-offset: 2px;
 }.table-title {
   display: flex;
   align-items: center;
