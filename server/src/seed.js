@@ -98,7 +98,7 @@ async function seed() {
         senderName: "Remitente demo",
         recipientName: "Destinatario demo",
         reportDate: dateOffset(2),
-        status: demo.code === "RAPID" ? "entregado" : "en_transito",
+        status: demo.code === "RAPID" ? "cerrado" : "procesado",
         description: "Bulto de demostración",
       },
     ];

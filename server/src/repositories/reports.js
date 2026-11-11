@@ -2,12 +2,36 @@ const { getDb } = require("../db");
 
 const STATUSES = [
   "pendiente",
-  "en_transito",
-  "entregado",
-  "devuelto",
-  "extraviado",
-  "cancelado",
+  "procesado",
+  "cerrado",
 ];
+
+const STATUS_TO_STORAGE = {
+  pendiente: ["pendiente"],
+  procesado: ["en_transito"],
+  cerrado: ["entregado", "devuelto", "extraviado", "cancelado"],
+};
+
+const STORAGE_TO_STATUS = {
+  pendiente: "pendiente",
+  en_transito: "procesado",
+  entregado: "cerrado",
+  devuelto: "cerrado",
+  extraviado: "cerrado",
+  cancelado: "cerrado",
+  procesado: "procesado",
+  cerrado: "cerrado",
+};
+
+function toApiStatus(status) {
+  return STORAGE_TO_STATUS[status] || status;
+}
+
+function toStorageStatus(status) {
+  if (status === "procesado") return "en_transito";
+  if (status === "cerrado") return "entregado";
+  return status;
+}
 
 const SELECT_REPORT = `
   SELECT
@@ -48,7 +72,7 @@ function toReport(row) {
     recipientName: row.recipient_name,
     recipientPhone: row.recipient_phone ?? null,
     reportDate: row.report_date,
-    status: row.status,
+    status: toApiStatus(row.status),
     description: row.description,
     observations: row.observations ?? null,
     lastNote: row.last_note ?? null,
@@ -69,8 +93,9 @@ function buildFilters({ agencyId = null, status, from, to, q }) {
     params.push(agencyId);
   }
   if (status) {
-    conditions.push("r.status = ?");
-    params.push(status);
+    const storageStatuses = STATUS_TO_STORAGE[status] || [status];
+    conditions.push(`r.status IN (${storageStatuses.map(() => "?").join(", ")})`);
+    params.push(...storageStatuses);
   }
   if (from) {
     conditions.push("date(r.report_date) >= ?");
@@ -168,7 +193,7 @@ function create(data) {
       data.recipientName,
       data.recipientPhone ?? null,
       data.reportDate,
-      data.status || "pendiente",
+      toStorageStatus(data.status || "pendiente"),
       data.description,
       data.observations ?? null,
       data.createdBy
@@ -196,7 +221,7 @@ function update(id, fields) {
   for (const [key, column] of Object.entries(allowed)) {
     if (fields[key] !== undefined) {
       sets.push(`${column} = ?`);
-      values.push(fields[key]);
+      values.push(key === "status" ? toStorageStatus(fields[key]) : fields[key]);
     }
   }
 
@@ -221,7 +246,8 @@ function stats({ agencyId = null, from, to }) {
   const byStatus = Object.fromEntries(STATUSES.map((status) => [status, 0]));
   let total = 0;
   for (const row of rows) {
-    byStatus[row.status] = row.count;
+    const status = toApiStatus(row.status);
+    byStatus[status] += row.count;
     total += row.count;
   }
 
@@ -250,7 +276,7 @@ function listHistory(reportId) {
     .map((row) => ({
       id: row.id,
       reportId: row.report_id,
-      status: row.status,
+      status: toApiStatus(row.status),
       notes: row.notes,
       changedBy: row.changed_by,
       changedByName: row.changed_by_name,

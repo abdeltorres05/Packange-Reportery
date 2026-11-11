@@ -111,14 +111,14 @@ test("filtra por estado, texto y rango de fechas", async () => {
     .send(
       reportBody({
         trackingNumber: "MARY-200",
-        status: "entregado",
+        status: "cerrado",
         reportDate: "2026-04-10",
         recipientName: "Lucía Pérez",
       })
     );
 
   const byStatus = await request(app)
-    .get("/api/reports?status=entregado")
+    .get("/api/reports?status=cerrado")
     .set(auth(data.tokens.adminA));
   assert.equal(byStatus.body.total, 1);
   assert.equal(byStatus.body.items[0].trackingNumber, "MARY-200");
@@ -138,7 +138,7 @@ test("las estadísticas respetan el alcance de la agencia", async () => {
   await request(app)
     .post("/api/reports")
     .set(auth(data.tokens.adminA))
-    .send(reportBody({ trackingNumber: "MARY-300", status: "entregado" }));
+    .send(reportBody({ trackingNumber: "MARY-300", status: "cerrado" }));
 
   const res = await request(app)
     .get("/api/reports/stats")
@@ -147,7 +147,7 @@ test("las estadísticas respetan el alcance de la agencia", async () => {
   assert.equal(res.status, 200);
   assert.equal(res.body.total, 2);
   assert.equal(res.body.byStatus.pendiente, 1);
-  assert.equal(res.body.byStatus.entregado, 1);
+  assert.equal(res.body.byStatus.cerrado, 1);
 
   const other = await request(app)
     .get("/api/reports/stats")
@@ -159,17 +159,17 @@ test("cambiar el estado agrega una entrada al historial", async () => {
   const res = await request(app)
     .patch(`/api/reports/${data.reportA.id}`)
     .set(auth(data.tokens.superAdmin))
-    .send({ status: "en_transito", statusNotes: "Salida a ruta" });
+    .send({ status: "procesado", statusNotes: "Salida a ruta" });
 
   assert.equal(res.status, 200);
-  assert.equal(res.body.report.status, "en_transito");
+  assert.equal(res.body.report.status, "procesado");
 
   const history = await request(app)
     .get(`/api/reports/${data.reportA.id}/history`)
     .set(auth(data.tokens.adminA));
   assert.equal(history.status, 200);
   assert.equal(history.body.items.length, 2);
-  assert.equal(history.body.items[1].status, "en_transito");
+  assert.equal(history.body.items[1].status, "procesado");
   assert.equal(history.body.items[1].notes, "Salida a ruta");
 });
 
@@ -177,17 +177,25 @@ test("un administrador puede cambiar el estado y se registra en el historial", a
   const res = await request(app)
     .patch(`/api/reports/${data.reportA.id}`)
     .set(auth(data.tokens.adminA))
-    .send({ status: "en_transito", statusNotes: "Salida a ruta" });
+    .send({ status: "procesado", notes: "Respuesta al cambio de estado" });
 
   assert.equal(res.status, 200);
-  assert.equal(res.body.report.status, "en_transito");
+  assert.equal(res.body.report.status, "procesado");
+
+  const history = await request(app)
+    .get(`/api/reports/${data.reportA.id}/history`)
+    .set(auth(data.tokens.adminA));
+  assert.equal(history.status, 200);
+  assert.equal(history.body.items.length, 2);
+  assert.equal(history.body.items[1].status, "procesado");
+  assert.equal(history.body.items[1].notes, "Respuesta al cambio de estado");
 });
 
 test("un usuario normal no puede cambiar el estado", async () => {
   const res = await request(app)
     .patch(`/api/reports/${data.reportA.id}`)
     .set(auth(data.tokens.agentA))
-    .send({ status: "en_transito" });
+    .send({ status: "procesado" });
 
   assert.equal(res.status, 403);
   assert.equal(res.body.error.code, "FORBIDDEN");
@@ -276,7 +284,7 @@ test("un empleado de agencia puede crear reportes en su agencia", async () => {
   const res = await request(app)
     .post("/api/reports")
     .set(auth(data.tokens.agentA))
-    .send(reportBody({ trackingNumber: "MARY-500", status: "entregado" }));
+    .send(reportBody({ trackingNumber: "MARY-500", status: "cerrado" }));
 
   assert.equal(res.status, 201);
   assert.equal(res.body.report.agencyId, data.agencyA.id);
