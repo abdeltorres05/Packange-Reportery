@@ -1,5 +1,7 @@
+import AuthImage from "../../components/AuthImage";
 import StatusBadge from "../../components/StatusBadge";
 import { STATUSES, STATUS_LABELS, formatDateTime } from "../../constants";
+import PhotoUploadButton from "./PhotoUploadButton";
 
 function ReportHistory({ entries }) {
   return (
@@ -13,6 +15,17 @@ function ReportHistory({ entries }) {
               {formatDateTime(entry.changedAt)} · {entry.changedByName}
             </span>
             {entry.notes && <p>{entry.notes}</p>}
+            {entry.photos?.length > 0 && (
+              <div className="history-photos">
+                {entry.photos.map((photo) => (
+                  <AuthImage
+                    key={photo.id}
+                    path={`/reports/${entry.reportId}/photos/${photo.id}/file`}
+                    alt={photo.originalName}
+                  />
+                ))}
+              </div>
+            )}
           </div>
         </li>
       ))}
@@ -53,8 +66,8 @@ export default function ReportDialog({
   formDescription,
   editTrackingNumber,
   editDescription,
-  attachPhoto,
   photoFile,
+  responsePhotoFile,
   createAgencyId,
   note,
   statusToSet,
@@ -67,8 +80,8 @@ export default function ReportDialog({
   onFormDescriptionChange,
   onEditTrackingNumberChange,
   onEditDescriptionChange,
-  onAttachPhotoChange,
   onPhotoFileChange,
+  onResponsePhotoChange,
   onCreateAgencyChange,
   onNoteChange,
   onStatusChange,
@@ -146,26 +159,7 @@ export default function ReportDialog({
                 </select>
               </label>
             )}
-            <label className="photo-option">
-              <input
-                type="checkbox"
-                checked={attachPhoto}
-                onChange={(event) => onAttachPhotoChange(event.target.checked)}
-              />
-              <span>Adjuntar una foto</span>
-            </label>
-            {attachPhoto && (
-              <label className="field">
-                <span>Foto (JPEG, PNG o WebP) *</span>
-                <input
-                  type="file"
-                  accept="image/jpeg,image/png,image/webp"
-                  required
-                  onChange={(event) => onPhotoFileChange(event.target.files?.[0] || null)}
-                />
-                {photoFile && <small className="muted">{photoFile.name}</small>}
-              </label>
-            )}
+            <PhotoUploadButton file={photoFile} onChange={onPhotoFileChange} />
             <div className="form-actions">
               <button type="submit" className="btn report-modal-action" disabled={saving}>
                 {saving ? "Creando…" : "Crear reporte"}
@@ -265,6 +259,15 @@ export default function ReportDialog({
                 placeholder="Agregar respuesta del reporte"
               />
             </label>
+            <div className="field">
+              <span>Foto para la respuesta (opcional)</span>
+              <PhotoUploadButton file={responsePhotoFile} onChange={onResponsePhotoChange} />
+              {responsePhotoFile && (
+                <small className="muted">
+                  Escribe una respuesta para publicar la foto en el historial.
+                </small>
+              )}
+            </div>
             <div>
               <h3>Historial</h3>
               <ReportHistory entries={history} />

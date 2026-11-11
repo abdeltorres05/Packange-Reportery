@@ -56,8 +56,8 @@ export default function Reports() {
         formDescription={reports.formDescription}
         editTrackingNumber={reports.editTrackingNumber}
         editDescription={reports.editDescription}
-        attachPhoto={reports.attachPhoto}
         photoFile={reports.photoFile}
+        responsePhotoFile={reports.responsePhotoFile}
         createAgencyId={reports.createAgencyId}
         note={reports.note}
         statusToSet={reports.statusToSet}
@@ -70,11 +70,8 @@ export default function Reports() {
         onFormDescriptionChange={reports.setFormDescription}
         onEditTrackingNumberChange={reports.setEditTrackingNumber}
         onEditDescriptionChange={reports.setEditDescription}
-        onAttachPhotoChange={(value) => {
-          reports.setAttachPhoto(value);
-          reports.setPhotoFile(null);
-        }}
         onPhotoFileChange={reports.setPhotoFile}
+        onResponsePhotoChange={reports.setResponsePhotoFile}
         onCreateAgencyChange={reports.setCreateAgencyId}
         onNoteChange={reports.setNote}
         onStatusChange={reports.setStatusToSet}

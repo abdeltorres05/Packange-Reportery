@@ -255,12 +255,19 @@ function stats({ agencyId = null, from, to }) {
 }
 
 function addHistory({ reportId, status, notes, changedBy }) {
-  getDb()
+  const info = getDb()
     .prepare(
       `INSERT INTO report_history (report_id, status, notes, changed_by)
        VALUES (?, ?, ?, ?)`
     )
     .run(reportId, status, notes ?? null, changedBy);
+  return info.lastInsertRowid;
+}
+
+function findHistoryScoped(reportId, historyId) {
+  return getDb()
+    .prepare("SELECT id, report_id FROM report_history WHERE id = ? AND report_id = ?")
+    .get(historyId, reportId) ?? null;
 }
 
 function listHistory(reportId) {
@@ -296,6 +303,7 @@ module.exports = {
   remove,
   stats,
   addHistory,
+  findHistoryScoped,
   listHistory,
   toReport,
 };

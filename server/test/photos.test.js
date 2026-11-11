@@ -6,6 +6,7 @@ const request = require("supertest");
 
 const app = require("../src/app");
 const { prepare, auth, PNG_1X1 } = require("../test-support/helpers");
+const reports = require("../src/repositories/reports");
 
 let data;
 
@@ -42,6 +43,52 @@ test("el superadministrador puede adjuntar fotos a un reporte", async () => {
   assert.equal(res.status, 201);
   assert.equal(res.body.photos.length, 1);
   assert.equal(res.body.photos[0].reportId, data.reportA.id);
+});
+
+test("asocia la foto a la respuesta correspondiente en el historial", async () => {
+  const historyId = reports.listHistory(data.reportA.id)[0].id;
+
+  const uploaded = await request(app)
+    .post(`/api/reports/${data.reportA.id}/photos`)
+    .set(auth(data.tokens.adminA))
+    .field("historyId", String(historyId))
+    .attach("photos", PNG_1X1, {
+      filename: "respuesta.png",
+      contentType: "image/png",
+    });
+
+  assert.equal(uploaded.status, 201);
+  assert.equal(uploaded.body.photos[0].historyId, historyId);
+
+  const detail = await request(app)
+    .get(`/api/reports/${data.reportA.id}`)
+    .set(auth(data.tokens.adminA));
+
+  assert.equal(detail.status, 200);
+  assert.equal(detail.body.history[0].photos.length, 1);
+  assert.equal(detail.body.history[0].photos[0].originalName, "respuesta.png");
+
+  const history = await request(app)
+    .get(`/api/reports/${data.reportA.id}/history`)
+    .set(auth(data.tokens.adminA));
+
+  assert.equal(history.status, 200);
+  assert.equal(history.body.items[0].photos[0].id, uploaded.body.photos[0].id);
+});
+
+test("no asocia una foto a una entrada de historial de otro reporte", async () => {
+  const historyId = reports.listHistory(data.reportB.id)[0].id;
+
+  const uploaded = await request(app)
+    .post(`/api/reports/${data.reportA.id}/photos`)
+    .set(auth(data.tokens.adminA))
+    .field("historyId", String(historyId))
+    .attach("photos", PNG_1X1, {
+      filename: "respuesta.png",
+      contentType: "image/png",
+    });
+
+  assert.equal(uploaded.status, 404);
 });
 
 test("otra agencia no puede descargar la foto", async () => {

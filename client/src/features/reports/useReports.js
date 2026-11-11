@@ -23,8 +23,8 @@ export function useReports(user, initialStatus = "") {
   const [formDescription, setFormDescription] = useState("");
   const [editTrackingNumber, setEditTrackingNumber] = useState("");
   const [editDescription, setEditDescription] = useState("");
-  const [attachPhoto, setAttachPhoto] = useState(false);
   const [photoFile, setPhotoFile] = useState(null);
+  const [responsePhotoFile, setResponsePhotoFile] = useState(null);
   const [createAgencyId, setCreateAgencyId] = useState("");
   const [note, setNote] = useState("");
   const [statusToSet, setStatusToSet] = useState("");
@@ -76,14 +76,15 @@ export function useReports(user, initialStatus = "") {
     setModal({ open: true, mode: "create", report: null });
     setFormBulto("");
     setFormDescription("");
-    setAttachPhoto(false);
     setPhotoFile(null);
+    setResponsePhotoFile(null);
     setCreateAgencyId("");
     setNote("");
     setStatusToSet("pendiente");
   };
 
   const openView = async (report) => {
+    setResponsePhotoFile(null);
     try {
       const detail = await api.get(`/reports/${report.id}`);
       setModal({ open: true, mode: "view", report: { ...report, ...detail } });
@@ -95,6 +96,7 @@ export function useReports(user, initialStatus = "") {
   };
 
   const openEdit = async (report) => {
+    setResponsePhotoFile(null);
     try {
       const detail = await api.get(`/reports/${report.id}`);
       setModal({ open: true, mode: "edit", report: { ...report, ...detail } });
@@ -118,8 +120,8 @@ export function useReports(user, initialStatus = "") {
     setFormDescription("");
     setEditTrackingNumber("");
     setEditDescription("");
-    setAttachPhoto(false);
     setPhotoFile(null);
+    setResponsePhotoFile(null);
     setCreateAgencyId("");
     setNote("");
   };
@@ -139,6 +141,7 @@ export function useReports(user, initialStatus = "") {
       if (photoFile) {
         const formData = new FormData();
         formData.append("photos", photoFile);
+        formData.append("historyId", String(created.historyId));
         try {
           await api.post(`/reports/${created.report.id}/photos`, formData);
         } catch (photoError) {
@@ -165,8 +168,13 @@ export function useReports(user, initialStatus = "") {
 
     const trackingNumber = editTrackingNumber.trim();
     const description = editDescription.trim();
+    const response = note.trim();
     if (!trackingNumber || !description) {
       notify("El HBL y la descripción son obligatorios.", "warning");
+      return;
+    }
+    if (responsePhotoFile && !response) {
+      notify("Escribe una respuesta para publicar la foto en el historial.", "warning");
       return;
     }
 
@@ -182,12 +190,28 @@ export function useReports(user, initialStatus = "") {
       if (canChangeStatus && statusToSet && statusToSet !== modal.report.status) {
         payload.status = statusToSet;
       }
-      if (note.trim()) payload.notes = note.trim();
+      if (response) payload.notes = response;
       if (Object.keys(payload).length === 0) {
         notify("Modifica un dato, cambia el estado o agrega una respuesta.", "warning");
         return;
       }
-      await api.patch(`/reports/${modal.report.id}`, payload);
+      const result = await api.patch(`/reports/${modal.report.id}`, payload);
+      if (responsePhotoFile) {
+        const formData = new FormData();
+        formData.append("photos", responsePhotoFile);
+        formData.append("historyId", String(result.historyId));
+        try {
+          await api.post(`/reports/${modal.report.id}/photos`, formData);
+        } catch (photoError) {
+          notify(
+            `La respuesta se guardó, pero no se pudo adjuntar la foto: ${photoError.message}`,
+            "warning"
+          );
+          closeModal();
+          fetchList();
+          return;
+        }
+      }
       notify("Reporte actualizado correctamente.", "warning");
       closeModal();
       fetchList();
@@ -216,7 +240,6 @@ export function useReports(user, initialStatus = "") {
 
   return {
     agencies,
-    attachPhoto,
     canChangeStatus,
     canCreate,
     canDelete,
@@ -243,9 +266,9 @@ export function useReports(user, initialStatus = "") {
     openView,
     pendingDelete,
     photoFile,
+    responsePhotoFile,
     saving,
     search,
-    setAttachPhoto,
     setCreateAgencyId,
     setEditDescription,
     setEditTrackingNumber,
@@ -254,6 +277,7 @@ export function useReports(user, initialStatus = "") {
     setNote,
     setPendingDelete,
     setPhotoFile,
+    setResponsePhotoFile,
     setSearch,
     setStatusToSet,
     setFilters,

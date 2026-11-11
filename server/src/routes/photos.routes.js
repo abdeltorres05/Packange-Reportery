@@ -33,6 +33,15 @@ router.post(
     const report = reports.findScoped(id, resolveAgencyScope(req, undefined));
     if (!report) throw notFound("Reporte no encontrado");
 
+    let historyId = null;
+    const requestedHistoryId = req.body?.historyId;
+    if (requestedHistoryId !== undefined) {
+      historyId = parseId(requestedHistoryId, "Historial inválido");
+      if (!reports.findHistoryScoped(id, historyId)) {
+        throw notFound("Entrada del historial no encontrada");
+      }
+    }
+
     const files = req.files ?? [];
     if (files.length === 0) throw badRequest("Debes adjuntar al menos una imagen");
 
@@ -63,6 +72,7 @@ router.post(
       created.push(
         photos.create({
           reportId: id,
+          historyId,
           filePath: relativePath,
           originalName: path.basename(file.originalname || `foto.${type.ext}`),
           mimeType: type.mime,

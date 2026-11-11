@@ -257,6 +257,17 @@ export default function ReportDetail() {
                   {formatDateTime(entry.changedAt)} · {entry.changedByName}
                 </span>
                 {entry.notes && <p>{entry.notes}</p>}
+                {entry.photos?.length > 0 && (
+                  <div className="history-photos">
+                    {entry.photos.map((photo) => (
+                      <AuthImage
+                        key={photo.id}
+                        path={`/reports/${report.id}/photos/${photo.id}/file`}
+                        alt={photo.originalName}
+                      />
+                    ))}
+                  </div>
+                )}
               </div>
             </li>
           ))}

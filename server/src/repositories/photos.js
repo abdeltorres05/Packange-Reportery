@@ -9,6 +9,7 @@ function toPhoto(row) {
     mimeType: row.mime_type,
     size: row.size,
     createdAt: row.created_at,
+    historyId: row.history_id ?? null,
   };
 }
 
@@ -39,13 +40,20 @@ function countByReport(reportId) {
     .get(reportId).total;
 }
 
-function create({ reportId, filePath, originalName, mimeType, size }) {
+function findByHistoryId(historyId) {
+  return getDb()
+    .prepare("SELECT * FROM report_photos WHERE history_id = ? ORDER BY id ASC")
+    .all(historyId)
+    .map(toPhoto);
+}
+
+function create({ reportId, historyId, filePath, originalName, mimeType, size }) {
   const info = getDb()
     .prepare(
-      `INSERT INTO report_photos (report_id, file_path, original_name, mime_type, size)
-       VALUES (?, ?, ?, ?, ?)`
+      `INSERT INTO report_photos (report_id, history_id, file_path, original_name, mime_type, size)
+       VALUES (?, ?, ?, ?, ?, ?)`
     )
-    .run(reportId, filePath, originalName, mimeType, size);
+    .run(reportId, historyId ?? null, filePath, originalName, mimeType, size);
   return findById(info.lastInsertRowid);
 }
 
@@ -55,6 +63,7 @@ function remove(id) {
 
 module.exports = {
   listByReport,
+  findByHistoryId,
   listRawByReport,
   findById,
   findRawById,

@@ -76,14 +76,14 @@ router.post("/", requireRole("agency_admin", "agency_user", "super_admin"), (req
     createdBy: req.user.id,
   });
 
-  reports.addHistory({
+  const historyId = reports.addHistory({
     reportId: report.id,
     status: report.status,
     notes: "Reporte creado",
     changedBy: req.user.id,
   });
 
-  res.status(201).json({ report });
+  res.status(201).json({ report, historyId });
 });
 
 router.get("/:id", (req, res) => {
@@ -92,10 +92,14 @@ router.get("/:id", (req, res) => {
   const report = reports.findScoped(id, agencyId);
   if (!report) throw notFound("Reporte no encontrado");
 
+  const history = reports.listHistory(id).map((entry) => ({
+    ...entry,
+    photos: photos.findByHistoryId(entry.id),
+  }));
   res.json({
     report,
     photos: photos.listByReport(id),
-    history: reports.listHistory(id),
+    history,
   });
 });
 
@@ -125,19 +129,20 @@ router.patch("/:id", requireRole("agency_admin", "agency_user", "super_admin"), 
   const statusChanged = fields.status && fields.status !== report.status;
   const updated = reports.update(id, fields);
 
+  let historyId = null;
   if (statusChanged || statusNotes || notes) {
-    reports.addHistory({
+    historyId = reports.addHistory({
       reportId: id,
       status: fields.status || report.status,
       notes: statusNotes ?? notes ?? null,
       changedBy: req.user.id,
     });
     if (updated) {
-      return res.json({ report: reports.findById(id) });
+      return res.json({ report: reports.findById(id), historyId });
     }
   }
 
-  res.json({ report: updated });
+  res.json({ report: updated, historyId });
 });
 
 router.get("/:id/history", (req, res) => {
@@ -145,7 +150,11 @@ router.get("/:id/history", (req, res) => {
   const agencyId = resolveAgencyScope(req, undefined);
   const report = reports.findScoped(id, agencyId);
   if (!report) throw notFound("Reporte no encontrado");
-  res.json({ items: reports.listHistory(id) });
+  const items = reports.listHistory(id).map((entry) => ({
+    ...entry,
+    photos: photos.findByHistoryId(entry.id),
+  }));
+  res.json({ items });
 });
 
 router.delete("/:id", requireRole("super_admin"), (req, res) => {

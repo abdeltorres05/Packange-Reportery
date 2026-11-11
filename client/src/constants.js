@@ -9,7 +9,7 @@ export const STATUS_LABELS = {
 export const ROLE_LABELS = {
   super_admin: "Super administrador",
   agency_admin: "Administrador del sistema",
-  agency_user: "Usuario normal",
+  agency_user: "Representante de agencia",
 };
 
 export function todayISO() {
