@@ -49,12 +49,17 @@ router.get("/", (req, res) => {
 
 router.post("/", requireRole("agency_admin", "agency_user", "super_admin"), (req, res) => {
   const data = validate(reportCreateSchema, req.body);
-  const agencyId = req.user.role === "super_admin" ? data.agencyId : req.user.agencyId;
+  const canChooseAgency = ["super_admin", "agency_admin"].includes(req.user.role);
+  const agencyId = req.user.role === "super_admin"
+    ? data.agencyId
+    : req.user.role === "agency_admin"
+      ? data.agencyId ?? req.user.agencyId
+      : req.user.agencyId;
 
   if (!agencyId) {
     throw notFound("Agencia no disponible");
   }
-  if (req.user.role === "super_admin" && !agencies.findById(agencyId)) {
+  if (canChooseAgency && !agencies.findById(agencyId)) {
     throw notFound("Agencia no encontrada");
   }
 
@@ -119,8 +124,7 @@ router.patch("/:id", requireRole("agency_admin", "agency_user", "super_admin"), 
   const { statusNotes, notes, ...fields } = data;
 
   if (fields.trackingNumber && fields.trackingNumber !== report.trackingNumber) {
-    const targetAgency = req.user.role === "super_admin" ? report.agencyId : req.user.agencyId;
-    const existing = reports.findByTrackingNumber(targetAgency, fields.trackingNumber);
+    const existing = reports.findByTrackingNumber(report.agencyId, fields.trackingNumber);
     if (existing && existing.id !== id) {
       throw conflict("Ya existe un reporte con esa guía en tu agencia");
     }

@@ -36,14 +36,15 @@ export function useReports(user, initialStatus = "") {
   const canChangeStatus = user.role === "agency_admin" || user.role === "super_admin";
   const canDelete = user.role === "super_admin";
   const canCreate = ["agency_admin", "agency_user", "super_admin"].includes(user.role);
+  const canChooseAgency = user.role === "super_admin" || user.role === "agency_admin";
 
   useEffect(() => {
-    if (user.role !== "super_admin") return;
+    if (!canChooseAgency) return;
     api
       .get("/agencies")
       .then((result) => setAgencies(result.items))
       .catch(() => setAgencies([]));
-  }, [user.role]);
+  }, [canChooseAgency]);
 
   const fetchList = useCallback(() => {
     const params = new URLSearchParams();
@@ -134,7 +135,7 @@ export function useReports(user, initialStatus = "") {
         trackingNumber: formBulto.trim(),
         description: formDescription.trim(),
         reportDate: todayISO(),
-        ...(user.role === "super_admin" ? { agencyId: Number(createAgencyId) } : {}),
+        ...(canChooseAgency ? { agencyId: Number(createAgencyId) } : {}),
       };
       const created = await api.post("/reports", payload);
 
@@ -241,6 +242,7 @@ export function useReports(user, initialStatus = "") {
   return {
     agencies,
     canChangeStatus,
+    canChooseAgency,
     canCreate,
     canDelete,
     closeModal,

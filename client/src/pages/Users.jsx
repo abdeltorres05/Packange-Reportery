@@ -15,7 +15,9 @@ export default function Users() {
           <p className="muted">
             {users.isSuper
               ? "Administra los responsables de todas las agencias."
-              : `Administra los usuarios de ${user.agencyName}.`}
+              : user.agencyName
+                ? `Administra los usuarios de ${user.agencyName} y crea usuarios para otras agencias.`
+                : "Administra los usuarios de todas las agencias."}
           </p>
         </div>
       </header>
@@ -33,6 +35,7 @@ export default function Users() {
         open={users.formOpen}
         user={users.editingUser}
         isSuper={users.isSuper}
+        canAssignAgency={users.canAssignAgency}
         agencies={users.agencies}
         availableRoles={users.availableRoles}
         form={users.form}

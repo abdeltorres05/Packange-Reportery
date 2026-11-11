@@ -80,7 +80,7 @@ export default function ReportTable({
       label: "Estado",
       render: (item) => <StatusBadge status={item.status} />,
     },
-    ...(user.role === "super_admin"
+    ...(user.role === "super_admin" || user.role === "agency_admin"
       ? [{ key: "agencyName", label: "Agencia" }]
       : []),
     { key: "createdByName", label: "Creado por" },
@@ -190,7 +190,7 @@ export default function ReportTable({
               </option>
             ))}
           </select>
-          {user.role === "super_admin" && (
+          {(user.role === "super_admin" || user.role === "agency_admin") && (
             <select
               value={filters.agencyId}
               onChange={(event) => onFilterChange("agencyId", event.target.value)}

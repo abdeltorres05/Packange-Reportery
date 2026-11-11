@@ -134,7 +134,7 @@ test("filtra por estado, texto y rango de fechas", async () => {
   assert.equal(byRange.body.total, 1);
 });
 
-test("las estadísticas respetan el alcance de la agencia", async () => {
+test("las estadísticas del administrador del sistema incluyen todas las agencias", async () => {
   await request(app)
     .post("/api/reports")
     .set(auth(data.tokens.adminA))
@@ -145,14 +145,14 @@ test("las estadísticas respetan el alcance de la agencia", async () => {
     .set(auth(data.tokens.adminA));
 
   assert.equal(res.status, 200);
-  assert.equal(res.body.total, 2);
-  assert.equal(res.body.byStatus.pendiente, 1);
+  assert.equal(res.body.total, 3);
+  assert.equal(res.body.byStatus.pendiente, 2);
   assert.equal(res.body.byStatus.cerrado, 1);
 
   const other = await request(app)
     .get("/api/reports/stats")
     .set(auth(data.tokens.adminB));
-  assert.equal(other.body.total, 1);
+  assert.equal(other.body.total, 3);
 });
 
 test("cambiar el estado agrega una entrada al historial", async () => {

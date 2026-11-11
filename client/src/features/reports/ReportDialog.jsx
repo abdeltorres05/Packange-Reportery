@@ -33,7 +33,7 @@ function ReportHistory({ entries }) {
   );
 }
 
-function ReportMetadata({ report, isSuper, title, statusLabel }) {
+function ReportMetadata({ report, canViewAgency, title, statusLabel }) {
   return (
     <dl className="detail-list">
       <div>
@@ -46,7 +46,7 @@ function ReportMetadata({ report, isSuper, title, statusLabel }) {
           <StatusBadge status={report.status} />
         </dd>
       </div>
-      {isSuper && (
+      {canViewAgency && (
         <div>
           <dt>Agencia</dt>
           <dd>{report.agencyName}</dd>
@@ -72,6 +72,7 @@ export default function ReportDialog({
   note,
   statusToSet,
   canChangeStatus,
+  canChooseAgency,
   saving,
   onClose,
   onCreate,
@@ -88,7 +89,7 @@ export default function ReportDialog({
 }) {
   if (!modal.open) return null;
 
-  const isSuper = user.role === "super_admin";
+  const canViewAgency = user.role === "super_admin" || user.role === "agency_admin";
 
   return (
     <div className="modal-backdrop">
@@ -105,7 +106,7 @@ export default function ReportDialog({
             {detail && (
               <p className="muted">
                 {detail.trackingNumber}
-                {isSuper && detail.agencyName ? ` · ${detail.agencyName}` : ""}
+                {canViewAgency && detail.agencyName ? ` · ${detail.agencyName}` : ""}
               </p>
             )}
           </div>
@@ -142,7 +143,7 @@ export default function ReportDialog({
                 required
               />
             </label>
-            {isSuper && (
+            {canChooseAgency && (
               <label className="field">
                 <span>Agencia *</span>
                 <select
@@ -179,7 +180,7 @@ export default function ReportDialog({
           <div className="modal-body">
             <ReportMetadata
               report={detail}
-              isSuper={isSuper}
+              canViewAgency={canViewAgency}
               title="Número de bulto"
               statusLabel="Estado"
             />
@@ -212,7 +213,7 @@ export default function ReportDialog({
           <form className="form" onSubmit={onUpdate}>
             <ReportMetadata
               report={detail}
-              isSuper={isSuper}
+              canViewAgency={canViewAgency}
               title="Número de bulto"
               statusLabel="Estado actual"
             />

@@ -10,7 +10,7 @@ const { isUniqueViolation } = require("../lib/dbErrors");
 
 const router = Router();
 
-router.use(requireAuth, requireRole("super_admin"));
+router.use(requireAuth, requireRole("super_admin", "agency_admin"));
 
 router.get("/", (req, res) => {
   const includeInactive = req.query.all === "1";

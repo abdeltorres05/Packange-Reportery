@@ -92,17 +92,17 @@ test("no asocia una foto a una entrada de historial de otro reporte", async () =
 });
 
 test("otra agencia no puede descargar la foto", async () => {
-  const res = await upload(data.reportA.id, data.tokens.adminA);
+  const res = await upload(data.reportB.id, data.tokens.adminB);
   const photo = res.body.photos[0];
 
   const file = await request(app)
-    .get(`/api/reports/${data.reportA.id}/photos/${photo.id}/file`)
-    .set(auth(data.tokens.adminB));
+    .get(`/api/reports/${data.reportB.id}/photos/${photo.id}/file`)
+    .set(auth(data.tokens.agentA));
   assert.equal(file.status, 404);
 });
 
 test("otra agencia no puede subir fotos a un reporte ajeno", async () => {
-  const res = await upload(data.reportA.id, data.tokens.adminB);
+  const res = await upload(data.reportB.id, data.tokens.agentA);
   assert.equal(res.status, 404);
 });
 

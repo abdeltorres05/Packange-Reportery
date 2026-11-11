@@ -4,6 +4,7 @@ export default function UserFormDialog({
   open,
   user,
   isSuper,
+  canAssignAgency,
   agencies,
   availableRoles,
   form,
@@ -79,7 +80,7 @@ export default function UserFormDialog({
             </select>
           </label>
 
-          {isSuper && form.role !== "super_admin" && (
+          {canAssignAgency && form.role === "agency_user" && (!user || isSuper) && (
             <label className="field">
               <span>Agencia *</span>
               <select

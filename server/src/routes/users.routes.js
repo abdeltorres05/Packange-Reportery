@@ -28,7 +28,7 @@ router.post("/", async (req, res) => {
   let agencyId = data.agencyId ?? null;
 
   if (req.user.role === "super_admin") {
-    if (data.role === "super_admin") {
+    if (["super_admin", "agency_admin"].includes(data.role)) {
       agencyId = null;
     } else {
       if (!agencyId) throw notFound("Debes indicar la agencia del usuario");
@@ -36,10 +36,14 @@ router.post("/", async (req, res) => {
     }
   } else {
     if (data.role === "super_admin") throw forbidden("No puedes crear super administradores");
-    if (data.agencyId && data.agencyId !== req.user.agencyId) {
-      throw notFound("Agencia no encontrada");
+    if (data.role === "agency_admin") {
+      agencyId = null;
+    } else {
+      agencyId = data.agencyId ?? req.user.agencyId;
+      if (!agencyId || !agencies.findById(agencyId)) {
+        throw notFound("Agencia no encontrada");
+      }
     }
-    agencyId = req.user.agencyId;
   }
 
   if (users.findAuthByEmail(data.email)) {
@@ -101,7 +105,7 @@ router.patch("/:id", async (req, res) => {
     if (data.agencyId !== undefined) {
       fields.agencyId = data.agencyId;
     }
-    if (effectiveRole === "super_admin") {
+    if (["super_admin", "agency_admin"].includes(effectiveRole)) {
       fields.agencyId = null;
     } else {
       const finalAgencyId = fields.agencyId ?? target.agencyId;

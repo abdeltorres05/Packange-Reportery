@@ -102,7 +102,7 @@ export default function Layout() {
               <ModuleIcon module="users" />
             </NavLink>
           )}
-          {user.role === "super_admin" && (
+          {(user.role === "super_admin" || user.role === "agency_admin") && (
             <NavLink to="/agencias" className={navClass}>
               <span>Agencias</span>
               <ModuleIcon module="agencies" />

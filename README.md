@@ -5,7 +5,7 @@ Sistema web de reportería para operaciones de paquetería con separación por a
 ## Funcionalidades
 
 - Panel con resumen de reportes por estado.
-- Gestión de agencias y usuarios con roles de superadministrador, administrador de agencia y empleado.
+- Gestión de agencias y usuarios con roles de superadministrador, administrador del sistema y representante de agencia.
 - Registro, consulta y seguimiento de reportes por número de rastreo.
 - Estados de reporte: pendiente, procesado y cerrado.
 - Fotografías adjuntas a los reportes.
@@ -57,7 +57,7 @@ En desarrollo, puedes optar por crear agencias y reportes de ejemplo configurand
 ## Roles
 
 - **Superadministrador:** tiene todos los privilegios; administra agencias y usuarios, consulta y modifica reportes de todas las agencias, cambia estados y puede eliminar reportes.
-- **Administrador del sistema:** administra usuarios y reportes dentro de su propia agencia; puede crear y editar reportes, incluido su estado, pero no puede eliminarlos, crear superadministradores ni acceder a otras agencias.
+- **Administrador del sistema:** consulta y crea o edita reportes de todas las agencias, incluido su estado, pero no puede eliminarlos. Puede administrar agencias y crear usuarios para cualquier agencia; los administradores del sistema no requieren una agencia asociada. No puede crear superadministradores.
 - **Representante de agencia:** puede crear y editar los datos de reportes de su agencia, pero no cambiar su estado; no puede administrar usuarios o agencias ni eliminar reportes.
 
 ## Comandos

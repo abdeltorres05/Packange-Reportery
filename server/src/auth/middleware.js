@@ -36,7 +36,7 @@ function requireRole(...roles) {
 }
 
 function resolveAgencyScope(req, requestedAgencyId) {
-  if (req.user.role !== "super_admin") {
+  if (!["super_admin", "agency_admin"].includes(req.user.role)) {
     return req.user.agencyId;
   }
 

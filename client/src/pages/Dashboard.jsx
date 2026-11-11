@@ -29,7 +29,9 @@ export default function Dashboard() {
   }, []);
 
   const scopeLabel =
-    user.role === "super_admin" ? "Todas las agencias" : user.agencyName;
+    ["super_admin", "agency_admin"].includes(user.role)
+      ? "Todas las agencias"
+      : user.agencyName;
 
   return (
     <div className="page">

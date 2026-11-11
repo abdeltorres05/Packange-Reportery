@@ -33,7 +33,7 @@ export default function App() {
         <Route
           path="agencias"
           element={
-            <RequireRole roles={["super_admin"]}>
+            <RequireRole roles={["super_admin", "agency_admin"]}>
               <Agencies />
             </RequireRole>
           }

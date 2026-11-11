@@ -30,7 +30,21 @@ function runMigrations(database = getDb()) {
 
   for (const file of pending) {
     const sql = fs.readFileSync(path.join(migrationsDir, file), "utf8");
-    apply(file, sql);
+    if (sql.includes("-- requiresForeignKeysOff")) {
+      database.pragma("foreign_keys = OFF");
+      try {
+        apply(file, sql);
+      } finally {
+        database.pragma("foreign_keys = ON");
+      }
+
+      const violations = database.pragma("foreign_key_check");
+      if (violations.length > 0) {
+        throw new Error(`Foreign key violations after migration ${file}`);
+      }
+    } else {
+      apply(file, sql);
+    }
   }
 
   return pending;

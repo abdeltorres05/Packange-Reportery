@@ -18,7 +18,7 @@ export default function Reports() {
         <div>
           <h1>Reportes</h1>
           <p className="muted">
-            {user.role === "super_admin"
+            {reports.canChooseAgency
               ? "Listado de reportes de todas las agencias"
               : "Listado de reportes de tu agencia"}
           </p>
@@ -62,6 +62,7 @@ export default function Reports() {
         note={reports.note}
         statusToSet={reports.statusToSet}
         canChangeStatus={reports.canChangeStatus}
+        canChooseAgency={reports.canChooseAgency}
         saving={reports.saving}
         onClose={reports.closeModal}
         onCreate={reports.handleCreate}

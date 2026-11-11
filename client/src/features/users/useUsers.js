@@ -15,6 +15,7 @@ function emptyForm() {
 
 export function useUsers(user) {
   const isSuper = user.role === "super_admin";
+  const canAssignAgency = isSuper || user.role === "agency_admin";
   const [users, setUsers] = useState([]);
   const [agencies, setAgencies] = useState([]);
   const [form, setForm] = useState(emptyForm);
@@ -26,7 +27,7 @@ export function useUsers(user) {
   const load = useCallback(() => {
     setLoading(true);
     const requests = [api.get("/users")];
-    if (isSuper) requests.push(api.get("/agencies"));
+    if (canAssignAgency) requests.push(api.get("/agencies"));
 
     Promise.all(requests)
       .then(([usersData, agenciesData]) => {
@@ -35,7 +36,7 @@ export function useUsers(user) {
       })
       .catch((error) => notify(error.message, "error"))
       .finally(() => setLoading(false));
-  }, [isSuper]);
+  }, [canAssignAgency]);
 
   useEffect(load, [load]);
 
@@ -78,7 +79,11 @@ export function useUsers(user) {
       role: form.role,
     };
 
-    if (isSuper && form.role !== "super_admin") {
+    if (
+      canAssignAgency &&
+      (!editingUser || isSuper) &&
+      form.role === "agency_user"
+    ) {
       payload.agencyId = Number(form.agencyId);
       if (!payload.agencyId) {
         notify("Selecciona la agencia del usuario.", "warning");
@@ -127,6 +132,7 @@ export function useUsers(user) {
     loading,
     submitting,
     isSuper,
+    canAssignAgency,
     availableRoles: isSuper
       ? ["super_admin", "agency_admin", "agency_user"]
       : ["agency_admin", "agency_user"],
